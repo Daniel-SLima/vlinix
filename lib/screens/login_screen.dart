@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vlinix/main.dart'; // IMPORTANTE: Para acessar o MyApp.setLocale
 import 'home_screen.dart';
+import 'signup_screen.dart'; // Importante: Garanta que este arquivo existe
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -78,31 +79,6 @@ class _LoginScreenState extends State<LoginScreen> {
             content: Text('Erro inesperado.'),
             backgroundColor: Colors.red,
           ),
-        );
-      }
-    }
-    setState(() => _isLoading = false);
-  }
-
-  Future<void> _signUp() async {
-    setState(() => _isLoading = true);
-    try {
-      await Supabase.instance.client.auth.signUp(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Conta criada!'),
-            backgroundColor: Colors.blue,
-          ),
-        );
-      }
-    } on AuthException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message), backgroundColor: Colors.red),
         );
       }
     }
@@ -219,8 +195,17 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         const SizedBox(height: 12),
+                        // --- AQUI ESTÁ A MUDANÇA PRINCIPAL ---
                         TextButton(
-                          onPressed: _signUp,
+                          onPressed: () {
+                            // Navega para a nova tela de cadastro (SignUpScreen)
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const SignUpScreen(),
+                              ),
+                            );
+                          },
                           child: const Text('Criar conta agora'),
                         ),
                       ],

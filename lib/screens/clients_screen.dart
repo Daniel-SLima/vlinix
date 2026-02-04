@@ -23,7 +23,14 @@ class _ClientsScreenState extends State<ClientsScreen> {
     required String phone,
     required String email,
   }) async {
-    final data = {'full_name': name, 'phone': phone, 'email': email};
+    // --- ALTERAÇÃO AQUI ---
+    final userId = Supabase.instance.client.auth.currentUser!.id;
+    final data = {
+      'user_id': userId, // Adicionado user_id
+      'full_name': name,
+      'phone': phone,
+      'email': email,
+    };
 
     try {
       if (id == null) {

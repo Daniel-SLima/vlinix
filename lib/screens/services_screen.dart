@@ -17,7 +17,14 @@ class _ServicesScreenState extends State<ServicesScreen> {
 
   // --- Lógica de CRUD ---
   Future<void> _createOrUpdate(int? id, String name, double price) async {
-    final data = {'name': name, 'price': price};
+    // --- ALTERAÇÃO AQUI ---
+    final userId = Supabase.instance.client.auth.currentUser!.id;
+    final data = {
+      'user_id': userId, // Adicionado user_id
+      'name': name,
+      'price': price,
+    };
+
     if (id == null) {
       await Supabase.instance.client.from('services').insert(data);
     } else {
