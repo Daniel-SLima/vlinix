@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-// OBRIGATÓRIO: Seu import definido como regra
 import 'package:vlinix/l10n/app_localizations.dart';
 
 class ClientsScreen extends StatefulWidget {
@@ -11,22 +10,41 @@ class ClientsScreen extends StatefulWidget {
 }
 
 class _ClientsScreenState extends State<ClientsScreen> {
+  final _searchController = TextEditingController();
+  String _searchText = '';
+
   final _clientsStream = Supabase.instance.client
       .from('clients')
       .stream(primaryKey: ['id'])
       .order('full_name');
 
-  // --- CRUD (Criar e Editar) ---
+  @override
+  void initState() {
+    super.initState();
+    // Ouve o que é digitado na busca
+    _searchController.addListener(() {
+      setState(() {
+        _searchText = _searchController.text.toLowerCase();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  // --- CRUD ---
   Future<void> _createOrUpdateClient({
     int? id,
     required String name,
     required String phone,
     required String email,
   }) async {
-    // --- ALTERAÇÃO AQUI ---
     final userId = Supabase.instance.client.auth.currentUser!.id;
     final data = {
-      'user_id': userId, // Adicionado user_id
+      'user_id': userId,
       'full_name': name,
       'phone': phone,
       'email': email,
@@ -34,22 +52,17 @@ class _ClientsScreenState extends State<ClientsScreen> {
 
     try {
       if (id == null) {
-        // Criar Novo
         await Supabase.instance.client.from('clients').insert(data);
       } else {
-        // Editar Existente
         await Supabase.instance.client
             .from('clients')
             .update(data)
             .eq('id', id);
       }
       if (mounted) {
-        final lang = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              id == null ? lang.msgClientCreated : lang.msgClientUpdated,
-            ),
+          const SnackBar(
+            content: Text('Salvo com sucesso!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -63,26 +76,14 @@ class _ClientsScreenState extends State<ClientsScreen> {
     }
   }
 
-  // --- DELETE ---
   Future<void> _deleteClient(int id) async {
     try {
       await Supabase.instance.client.from('clients').delete().eq('id', id);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context)!.msgClientDeleted),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
     } catch (e) {
       if (mounted) {
-        // Removemos o "Erro: " manual e usamos só a tradução se preferir,
-        // ou concatenamos se o texto do erro for técnico.
-        // Aqui usaremos a mensagem amigável do dicionário.
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context)!.msgErrorDeleteClient),
+          const SnackBar(
+            content: Text('Erro ao excluir.'),
             backgroundColor: Colors.red,
           ),
         );
@@ -90,7 +91,6 @@ class _ClientsScreenState extends State<ClientsScreen> {
     }
   }
 
-  // --- DIÁLOGO ---
   void _showClientDialog({Map<String, dynamic>? client}) {
     final lang = AppLocalizations.of(context)!;
     final nameCtrl = TextEditingController(text: client?['full_name']);
@@ -128,21 +128,15 @@ class _ClientsScreenState extends State<ClientsScreen> {
             child: Text(lang.btnCancel),
           ),
           ElevatedButton(
-            onPressed: () async {
+            onPressed: () {
               if (nameCtrl.text.isEmpty) return;
-
-              // Executa a ação
-              await _createOrUpdateClient(
+              _createOrUpdateClient(
                 id: client?['id'],
                 name: nameCtrl.text,
                 phone: phoneCtrl.text,
                 email: emailCtrl.text,
               );
-
-              // Só fecha o diálogo se a tela ainda estiver montada
-              if (ctx.mounted) {
-                Navigator.pop(ctx);
-              }
+              Navigator.pop(ctx);
             },
             child: Text(lang.btnSave),
           ),
@@ -167,79 +161,95 @@ class _ClientsScreenState extends State<ClientsScreen> {
         foregroundColor: Colors.white,
         child: const Icon(Icons.add),
       ),
-      body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: _clientsStream,
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final clients = snapshot.data!;
-          if (clients.isEmpty) {
-            return Center(child: Text(lang.msgNoClients));
-          }
+      body: Column(
+        children: [
+          // --- BARRA DE PESQUISA ---
+          Padding(
+            padding: const EdgeInsets.all(10.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: const InputDecoration(
+                labelText: 'Pesquisar Cliente',
+                hintText: 'Nome, telefone ou email...',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ),
+          // --- LISTA ---
+          Expanded(
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _clientsStream,
+              builder: (context, snapshot) {
+                if (!snapshot.hasData)
+                  return const Center(child: CircularProgressIndicator());
 
-          return ListView.builder(
-            itemCount: clients.length,
-            itemBuilder: (context, index) {
-              final client = clients[index];
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    child: Text(
-                      client['full_name']
-                          .toString()
-                          .substring(0, 1)
-                          .toUpperCase(),
-                    ),
-                  ),
-                  title: Text(client['full_name']),
-                  subtitle: Text(
-                    '${client['phone'] ?? '-'} \n${client['email'] ?? '-'}',
-                  ),
-                  isThreeLine: true,
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
-                        onPressed: () => _showClientDialog(client: client),
+                final allClients = snapshot.data!;
+
+                // Lógica de Filtro
+                final clients = allClients.where((client) {
+                  final name = (client['full_name'] ?? '')
+                      .toString()
+                      .toLowerCase();
+                  final phone = (client['phone'] ?? '')
+                      .toString()
+                      .toLowerCase();
+                  final email = (client['email'] ?? '')
+                      .toString()
+                      .toLowerCase();
+                  return name.contains(_searchText) ||
+                      phone.contains(_searchText) ||
+                      email.contains(_searchText);
+                }).toList();
+
+                if (clients.isEmpty)
+                  return Center(child: Text(lang.msgNoClients));
+
+                return ListView.builder(
+                  itemCount: clients.length,
+                  itemBuilder: (context, index) {
+                    final client = clients[index];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: Text(lang.dialogDeleteTitle),
-                              content: Text(lang.dialogDeleteContent),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx),
-                                  child: Text(lang.btnCancel),
-                                ),
-                                TextButton(
-                                  onPressed: () {
-                                    _deleteClient(client['id']);
-                                    Navigator.pop(ctx);
-                                  },
-                                  child: Text(
-                                    lang.btnDelete,
-                                    style: const TextStyle(color: Colors.red),
-                                  ),
-                                ),
-                              ],
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          child: Text(
+                            client['full_name']
+                                .toString()
+                                .substring(0, 1)
+                                .toUpperCase(),
+                          ),
+                        ),
+                        title: Text(client['full_name']),
+                        subtitle: Text(
+                          '${client['phone'] ?? '-'} \n${client['email'] ?? '-'}',
+                        ),
+                        isThreeLine: true,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () =>
+                                  _showClientDialog(client: client),
                             ),
-                          );
-                        },
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () => _deleteClient(client['id']),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          );
-        },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
