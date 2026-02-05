@@ -58,26 +58,37 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
   Future<void> _fetchInitialData() async {
     final supabase = Supabase.instance.client;
 
-    final clientsData = await supabase
-        .from('clients')
-        .select()
-        .order('full_name');
-    final servicesData = await supabase.from('services').select().order('name');
+    try {
+      // --- MUDANÇA 1: FILTRO DE CLIENTES ---
+      // Usamos 'vehicles!inner(id)' para trazer APENAS clientes que tenham veículos.
+      // O !inner força o banco a ignorar clientes sem carros.
+      final clientsData = await supabase
+          .from('clients')
+          .select('*, vehicles!inner(id)')
+          .order('full_name');
 
-    if (mounted) {
-      setState(() {
-        _clients = List<Map<String, dynamic>>.from(clientsData);
-        _services = List<Map<String, dynamic>>.from(servicesData);
-      });
+      final servicesData = await supabase
+          .from('services')
+          .select()
+          .order('name');
 
-      // Se estiver editando, precisamos carregar os veículos do cliente selecionado
-      if (_selectedClientId != null) {
-        _fetchVehicles(_selectedClientId!);
+      if (mounted) {
+        setState(() {
+          _clients = List<Map<String, dynamic>>.from(clientsData);
+          _services = List<Map<String, dynamic>>.from(servicesData);
+        });
+
+        // Se estiver editando, precisamos carregar os veículos do cliente selecionado
+        if (_selectedClientId != null) {
+          _fetchVehicles(_selectedClientId!);
+        }
       }
+    } catch (e) {
+      debugPrint('Erro ao carregar dados iniciais: $e');
     }
   }
 
-  // Carrega Veículos quando escolhe um Cliente
+  // Carrega Veículos com Validação Inteligente
   Future<void> _fetchVehicles(int clientId) async {
     final vehiclesData = await Supabase.instance.client
         .from('vehicles')
@@ -87,15 +98,27 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
     if (mounted) {
       setState(() {
         _clientVehicles = List<Map<String, dynamic>>.from(vehiclesData);
-        // Se o veículo selecionado não pertencer mais a lista (trocou de cliente), limpa
-        if (_clientVehicles.every((v) => v['id'] != _selectedVehicleId)) {
-          _selectedVehicleId = null;
+
+        // --- MUDANÇA 2: SELEÇÃO AUTOMÁTICA ---
+        // Se tiver APENAS UM carro, seleciona automaticamente
+        if (_clientVehicles.length == 1) {
+          _selectedVehicleId = _clientVehicles.first['id'];
+        } else {
+          // Se tiver mais de um (ou zero), verifica se o selecionado ainda é válido
+          if (_selectedVehicleId != null) {
+            final exists = _clientVehicles.any(
+              (v) => v['id'] == _selectedVehicleId,
+            );
+            if (!exists) {
+              _selectedVehicleId = null;
+            }
+          }
         }
       });
     }
   }
 
-  // --- LÓGICA DO GOOGLE CALENDAR (Create/Update) ---
+  // --- LÓGICA DO GOOGLE CALENDAR ---
 
   Future<String?> _getSessionToken() async {
     final session = Supabase.instance.client.auth.currentSession;
@@ -200,7 +223,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // 1. Preparar Datas
       final finalDateTime = DateTime(
         _selectedDate.year,
         _selectedDate.month,
@@ -210,7 +232,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
       );
       final endTime = finalDateTime.add(const Duration(hours: 1));
 
-      // 2. Dados para o Google
       final clientName = _clients.firstWhere(
         (c) => c['id'] == _selectedClientId,
       )['full_name'];
@@ -220,14 +241,11 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
       final googleTitle = 'Vlinix: $serviceName - $clientName';
       final googleDesc = 'Agendamento App Vlinix';
 
-      // 3. Lógica Principal
       final supabase = Supabase.instance.client;
       final userId = supabase.auth.currentUser!.id;
 
       if (widget.appointmentToEdit == null) {
         // --- CRIAÇÃO ---
-
-        // A. Cria no Google
         String? newGoogleId = await _createGoogleEvent(
           title: googleTitle,
           description: googleDesc,
@@ -235,7 +253,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
           endTime: endTime,
         );
 
-        // B. Salva no Banco
         await supabase.from('appointments').insert({
           'user_id': userId,
           'client_id': _selectedClientId,
@@ -247,8 +264,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
         });
       } else {
         // --- EDIÇÃO ---
-
-        // A. Atualiza no Banco
         await supabase
             .from('appointments')
             .update({
@@ -259,7 +274,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
             })
             .eq('id', widget.appointmentToEdit!['id']);
 
-        // B. Atualiza no Google
         String? currentGoogleId = widget.appointmentToEdit!['google_event_id'];
 
         if (currentGoogleId != null && currentGoogleId.isNotEmpty) {
@@ -271,7 +285,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
             endTime: endTime,
           );
         } else {
-          // Se não tinha evento, cria um
           String? newId = await _createGoogleEvent(
             title: googleTitle,
             description: googleDesc,
@@ -312,7 +325,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
     final lang = AppLocalizations.of(context)!;
     final isEditing = widget.appointmentToEdit != null;
 
-    // 1. Detecta tela grande
+    // 1. Detecta tela grande (Responsividade)
     final isLargeScreen = MediaQuery.of(context).size.width > 600;
 
     return Scaffold(
@@ -322,17 +335,25 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      // 2. Fundo cinza no PC
+      // 2. Fundo responsivo
       backgroundColor: isLargeScreen ? Colors.grey[100] : Colors.white,
 
+      // Validação: Se não tiver clientes (com carros) ou serviços, avisa
       body: _clients.isEmpty || _services.isEmpty
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+              child:
+                  _isLoading // Se estiver carregando, mostra load. Se não, avisa.
+                  ? const CircularProgressIndicator()
+                  : const Text(
+                      "Nenhum cliente com veículo ou serviço cadastrado.",
+                    ),
+            )
           : Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16.0),
                 child: Center(
                   child: Container(
-                    // 3. Cartão responsivo centralizado
+                    // 3. Cartão centralizado
                     width: isLargeScreen ? 500 : double.infinity,
                     padding: isLargeScreen
                         ? const EdgeInsets.all(32)
@@ -351,9 +372,9 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                           )
                         : null,
                     child: Column(
-                      mainAxisSize: MainAxisSize.min, // Não esticar
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Cliente
+                        // Cliente (Só aparecem os que têm carro devido ao !inner)
                         DropdownButtonFormField<int>(
                           value: _selectedClientId,
                           decoration: InputDecoration(
@@ -372,8 +393,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                             if (value != null) {
                               setState(() {
                                 _selectedClientId = value;
-                                _selectedVehicleId =
-                                    null; // Reseta veículo ao trocar cliente
+                                _selectedVehicleId = null;
                               });
                               _fetchVehicles(value);
                             }
@@ -381,7 +401,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        // Veículo (Depende do Cliente)
+                        // Veículo
                         DropdownButtonFormField<int>(
                           value: _selectedVehicleId,
                           decoration: InputDecoration(
