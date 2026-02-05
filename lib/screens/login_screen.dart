@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:vlinix/main.dart'; // IMPORTANTE: Para acessar o MyApp.setLocale
+import 'package:vlinix/main.dart';
 import 'home_screen.dart';
-import 'signup_screen.dart'; // Importante: Garanta que este arquivo existe
+import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -87,9 +87,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Detecta se é "Tela Grande" (PC/Tablet)
+    final isLargeScreen = MediaQuery.of(context).size.width > 600;
+
     return Scaffold(
-      backgroundColor: Colors.white,
-      // AppBar Transparente para o Seletor de Línguas
+      backgroundColor: Colors.white, // No Mobile é branco total
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -108,109 +110,137 @@ class _LoginScreenState extends State<LoginScreen> {
           const SizedBox(width: 10),
         ],
       ),
+      // LayoutBuilder para centralizar no Desktop
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.directions_car_filled,
-                size: 80,
-                color: Color(0xFF1E88E5),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'VLINIX',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E88E5),
-                ),
-              ),
-              const Text(
-                'Gestão Automotiva Inteligente',
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 40),
-
-              if (!_isLoading) ...[
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.login, color: Colors.red),
-                    label: const Text('Entrar com Google'),
-                    onPressed: _googleSignIn,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                const Row(
-                  children: [
-                    Expanded(child: Divider()),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: Text("OU"),
-                    ),
-                    Expanded(child: Divider()),
-                  ],
-                ),
-                const SizedBox(height: 20),
-              ],
-
-              TextField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'E-mail',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.email),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Senha',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.lock),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              _isLoading
-                  ? const CircularProgressIndicator()
-                  : Column(
-                      children: [
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: _signIn,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1E88E5),
-                              foregroundColor: Colors.white,
-                            ),
-                            child: const Text('ENTRAR'),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        // --- AQUI ESTÁ A MUDANÇA PRINCIPAL ---
-                        TextButton(
-                          onPressed: () {
-                            // Navega para a nova tela de cadastro (SignUpScreen)
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const SignUpScreen(),
-                              ),
-                            );
-                          },
-                          child: const Text('Criar conta agora'),
+          child: Center(
+            child: Container(
+              // No PC, criamos um "cartão" visual. No celular, é transparente.
+              width: isLargeScreen ? 400 : double.infinity,
+              padding: isLargeScreen
+                  ? const EdgeInsets.all(40)
+                  : EdgeInsets.zero,
+              decoration: isLargeScreen
+                  ? BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
                         ),
                       ],
+                      border: Border.all(color: Colors.grey.shade200),
+                    )
+                  : null,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize:
+                    MainAxisSize.min, // Importante para não esticar o cartão
+                children: [
+                  const Icon(
+                    Icons.directions_car_filled,
+                    size: 80,
+                    color: Color(0xFF1E88E5),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'VLINIX',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E88E5),
                     ),
-            ],
+                  ),
+                  const Text(
+                    'Gestão Automotiva Inteligente',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  const SizedBox(height: 40),
+
+                  if (!_isLoading) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.login, color: Colors.red),
+                        label: const Text('Entrar com Google'),
+                        onPressed: _googleSignIn,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Row(
+                      children: [
+                        Expanded(child: Divider()),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8),
+                          child: Text(
+                            "OU",
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                        ),
+                        Expanded(child: Divider()),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+
+                  TextField(
+                    controller: _emailController,
+                    decoration: const InputDecoration(
+                      labelText: 'E-mail',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.email),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _passwordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Senha',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.lock),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  _isLoading
+                      ? const CircularProgressIndicator()
+                      : Column(
+                          children: [
+                            SizedBox(
+                              width: double.infinity,
+                              height: 50,
+                              child: ElevatedButton(
+                                onPressed: _signIn,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF1E88E5),
+                                  foregroundColor: Colors.white,
+                                ),
+                                child: const Text('ENTRAR'),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const SignUpScreen(),
+                                  ),
+                                );
+                              },
+                              child: const Text('Criar conta agora'),
+                            ),
+                          ],
+                        ),
+                ],
+              ),
+            ),
           ),
         ),
       ),

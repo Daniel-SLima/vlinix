@@ -312,153 +312,193 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
     final lang = AppLocalizations.of(context)!;
     final isEditing = widget.appointmentToEdit != null;
 
+    // 1. Detecta tela grande
+    final isLargeScreen = MediaQuery.of(context).size.width > 600;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          isEditing ? lang.titleEditClient : lang.btnNew,
-        ), // Reutilizando strings existentes
+        title: Text(isEditing ? lang.titleEditClient : lang.btnNew),
         backgroundColor: const Color(0xFF1E88E5),
         foregroundColor: Colors.white,
+        elevation: 0,
       ),
+      // 2. Fundo cinza no PC
+      backgroundColor: isLargeScreen ? Colors.grey[100] : Colors.white,
+
       body: _clients.isEmpty || _services.isEmpty
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  // Cliente
-                  DropdownButtonFormField<int>(
-                    value: _selectedClientId,
-                    decoration: InputDecoration(
-                      labelText: lang.labelClient,
-                      border: const OutlineInputBorder(),
-                    ),
-                    items: _clients
-                        .map(
-                          (c) => DropdownMenuItem(
-                            value: c['id'] as int,
-                            child: Text(c['full_name']),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _selectedClientId = value;
-                          _selectedVehicleId =
-                              null; // Reseta veículo ao trocar cliente
-                        });
-                        _fetchVehicles(value);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Veículo (Depende do Cliente)
-                  DropdownButtonFormField<int>(
-                    value: _selectedVehicleId,
-                    decoration: InputDecoration(
-                      labelText: lang.labelVehicle,
-                      border: const OutlineInputBorder(),
-                    ),
-                    // Se não tiver cliente selecionado ou não tiver veículos, mostra lista vazia ou desabilita
-                    items: _clientVehicles
-                        .map(
-                          (v) => DropdownMenuItem(
-                            value: v['id'] as int,
-                            child: Text('${v['model']} (${v['plate']})'),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: _selectedClientId == null
-                        ? null
-                        : (value) => setState(() => _selectedVehicleId = value),
-                    hint: _selectedClientId == null
-                        ? const Text('Selecione um cliente primeiro')
+          : Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Center(
+                  child: Container(
+                    // 3. Cartão responsivo centralizado
+                    width: isLargeScreen ? 500 : double.infinity,
+                    padding: isLargeScreen
+                        ? const EdgeInsets.all(32)
+                        : EdgeInsets.zero,
+                    decoration: isLargeScreen
+                        ? BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          )
                         : null,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Serviço
-                  DropdownButtonFormField<int>(
-                    value: _selectedServiceId,
-                    decoration: InputDecoration(
-                      labelText: lang.labelService,
-                      border: const OutlineInputBorder(),
-                    ),
-                    items: _services
-                        .map(
-                          (s) => DropdownMenuItem(
-                            value: s['id'] as int,
-                            child: Text('${s['name']} (R\$ ${s['price']})'),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min, // Não esticar
+                      children: [
+                        // Cliente
+                        DropdownButtonFormField<int>(
+                          value: _selectedClientId,
+                          decoration: InputDecoration(
+                            labelText: lang.labelClient,
+                            border: const OutlineInputBorder(),
                           ),
-                        )
-                        .toList(),
-                    onChanged: (value) =>
-                        setState(() => _selectedServiceId = value),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Data e Hora
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.calendar_today),
-                          label: Text(
-                            DateFormat('dd/MM/yyyy').format(_selectedDate),
-                          ),
-                          onPressed: () async {
-                            final date = await showDatePicker(
-                              context: context,
-                              initialDate: _selectedDate,
-                              firstDate: DateTime(2020),
-                              lastDate: DateTime(2030),
-                            );
-                            if (date != null)
-                              setState(() => _selectedDate = date);
+                          items: _clients
+                              .map(
+                                (c) => DropdownMenuItem(
+                                  value: c['id'] as int,
+                                  child: Text(c['full_name']),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() {
+                                _selectedClientId = value;
+                                _selectedVehicleId =
+                                    null; // Reseta veículo ao trocar cliente
+                              });
+                              _fetchVehicles(value);
+                            }
                           },
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.access_time),
-                          label: Text(_selectedTime.format(context)),
-                          onPressed: () async {
-                            final time = await showTimePicker(
-                              context: context,
-                              initialTime: _selectedTime,
-                            );
-                            if (time != null)
-                              setState(() => _selectedTime = time);
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 32),
+                        const SizedBox(height: 16),
 
-                  // Botão Salvar
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _save,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1E88E5),
-                        foregroundColor: Colors.white,
-                      ),
-                      child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : Text(
-                              isEditing
-                                  ? lang.btnUpdate.toUpperCase()
-                                  : lang.btnSchedule.toUpperCase(),
+                        // Veículo (Depende do Cliente)
+                        DropdownButtonFormField<int>(
+                          value: _selectedVehicleId,
+                          decoration: InputDecoration(
+                            labelText: lang.labelVehicle,
+                            border: const OutlineInputBorder(),
+                          ),
+                          items: _clientVehicles
+                              .map(
+                                (v) => DropdownMenuItem(
+                                  value: v['id'] as int,
+                                  child: Text('${v['model']} (${v['plate']})'),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: _selectedClientId == null
+                              ? null
+                              : (value) =>
+                                    setState(() => _selectedVehicleId = value),
+                          hint: _selectedClientId == null
+                              ? const Text('Selecione um cliente primeiro')
+                              : null,
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Serviço
+                        DropdownButtonFormField<int>(
+                          value: _selectedServiceId,
+                          decoration: InputDecoration(
+                            labelText: lang.labelService,
+                            border: const OutlineInputBorder(),
+                          ),
+                          items: _services
+                              .map(
+                                (s) => DropdownMenuItem(
+                                  value: s['id'] as int,
+                                  child: Text(
+                                    '${s['name']} (R\$ ${s['price']})',
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) =>
+                              setState(() => _selectedServiceId = value),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Data e Hora
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: const Icon(Icons.calendar_today),
+                                label: Text(
+                                  DateFormat(
+                                    'dd/MM/yyyy',
+                                  ).format(_selectedDate),
+                                ),
+                                onPressed: () async {
+                                  final date = await showDatePicker(
+                                    context: context,
+                                    initialDate: _selectedDate,
+                                    firstDate: DateTime(2020),
+                                    lastDate: DateTime(2030),
+                                  );
+                                  if (date != null)
+                                    setState(() => _selectedDate = date);
+                                },
+                              ),
                             ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: const Icon(Icons.access_time),
+                                label: Text(_selectedTime.format(context)),
+                                onPressed: () async {
+                                  final time = await showTimePicker(
+                                    context: context,
+                                    initialTime: _selectedTime,
+                                  );
+                                  if (time != null)
+                                    setState(() => _selectedTime = time);
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 32),
+
+                        // Botão Salvar
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : _save,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1E88E5),
+                              foregroundColor: Colors.white,
+                              elevation: isLargeScreen ? 2 : 1,
+                            ),
+                            child: _isLoading
+                                ? const CircularProgressIndicator(
+                                    color: Colors.white,
+                                  )
+                                : Text(
+                                    isEditing
+                                        ? lang.btnUpdate.toUpperCase()
+                                        : lang.btnSchedule.toUpperCase(),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
             ),
     );

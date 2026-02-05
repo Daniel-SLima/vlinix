@@ -94,54 +94,91 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
     final lang = AppLocalizations.of(context)!;
     final isEditing = widget.serviceToEdit != null;
 
+    // 1. Detecta tela grande (PC/Tablet)
+    final isLargeScreen = MediaQuery.of(context).size.width > 600;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          isEditing ? 'Editar Serviço' : lang.btnNew,
-        ), // Ajuste o texto conforme preferir
+        title: Text(isEditing ? 'Editar Serviço' : lang.btnNew),
         backgroundColor: const Color(0xFF1E88E5),
         foregroundColor: Colors.white,
+        elevation: 0,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            TextField(
-              controller: _nameController,
-              decoration: InputDecoration(
-                labelText: lang.labelService,
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.build),
+      // 2. Fundo cinza no PC, branco no celular
+      backgroundColor: isLargeScreen ? Colors.grey[100] : Colors.white,
+
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Center(
+            child: Container(
+              // 3. Largura máxima e decoração de cartão apenas no PC
+              width: isLargeScreen ? 500 : double.infinity,
+              padding: isLargeScreen
+                  ? const EdgeInsets.all(32)
+                  : EdgeInsets.zero,
+              decoration: isLargeScreen
+                  ? BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    )
+                  : null,
+              child: Column(
+                mainAxisSize:
+                    MainAxisSize.min, // Importante para o cartão não esticar
+                children: [
+                  TextField(
+                    controller: _nameController,
+                    decoration: InputDecoration(
+                      labelText: lang.labelService,
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.build),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _priceController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Preço (R\$)',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.attach_money),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _save,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1E88E5),
+                        foregroundColor: Colors.white,
+                        elevation: isLargeScreen ? 2 : 1,
+                      ),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : Text(
+                              lang.btnSave.toUpperCase(),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _priceController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(
-                labelText: 'Preço (R\$)',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.attach_money),
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _save,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1E88E5),
-                  foregroundColor: Colors.white,
-                ),
-                child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : Text(lang.btnSave.toUpperCase()),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

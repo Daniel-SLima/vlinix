@@ -107,76 +107,117 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     final lang = AppLocalizations.of(context)!;
     final isEditing = widget.vehicleToEdit != null;
 
+    // 1. Detecta tela grande
+    final isLargeScreen = MediaQuery.of(context).size.width > 600;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditing ? lang.titleEditVehicle : 'Novo Veículo'),
         backgroundColor: const Color(0xFF1E88E5),
         foregroundColor: Colors.white,
+        elevation: 0,
       ),
+      // 2. Fundo condicional
+      backgroundColor: isLargeScreen ? Colors.grey[100] : Colors.white,
+
       body: _clients.isEmpty
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  DropdownButtonFormField<int>(
-                    value: _selectedClientId,
-                    decoration: InputDecoration(
-                      labelText: lang.labelClient,
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.person),
+          : Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Center(
+                  child: Container(
+                    // 3. Cartão responsivo
+                    width: isLargeScreen ? 500 : double.infinity,
+                    padding: isLargeScreen
+                        ? const EdgeInsets.all(32)
+                        : EdgeInsets.zero,
+                    decoration: isLargeScreen
+                        ? BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          )
+                        : null,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        DropdownButtonFormField<int>(
+                          value: _selectedClientId,
+                          decoration: InputDecoration(
+                            labelText: lang.labelClient,
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.person),
+                          ),
+                          items: _clients.map((c) {
+                            return DropdownMenuItem(
+                              value: c['id'] as int,
+                              child: Text(c['full_name']),
+                            );
+                          }).toList(),
+                          onChanged: (val) =>
+                              setState(() => _selectedClientId = val),
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _modelController,
+                          decoration: InputDecoration(
+                            labelText: lang.labelModel,
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.directions_car),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _plateController,
+                          decoration: InputDecoration(
+                            labelText: lang.labelPlate,
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.pin),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _colorController,
+                          decoration: InputDecoration(
+                            labelText: lang.labelColor,
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.color_lens),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : _save,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1E88E5),
+                              foregroundColor: Colors.white,
+                              elevation: isLargeScreen ? 2 : 1,
+                            ),
+                            child: _isLoading
+                                ? const CircularProgressIndicator(
+                                    color: Colors.white,
+                                  )
+                                : Text(
+                                    lang.btnSave.toUpperCase(),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
                     ),
-                    items: _clients.map((c) {
-                      return DropdownMenuItem(
-                        value: c['id'] as int,
-                        child: Text(c['full_name']),
-                      );
-                    }).toList(),
-                    onChanged: (val) => setState(() => _selectedClientId = val),
                   ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _modelController,
-                    decoration: InputDecoration(
-                      labelText: lang.labelModel,
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.directions_car),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _plateController,
-                    decoration: InputDecoration(
-                      labelText: lang.labelPlate,
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.pin),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _colorController,
-                    decoration: InputDecoration(
-                      labelText: lang.labelColor,
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.color_lens),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _save,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1E88E5),
-                        foregroundColor: Colors.white,
-                      ),
-                      child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : Text(lang.btnSave.toUpperCase()),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
     );
