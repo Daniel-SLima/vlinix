@@ -55,5 +55,9 @@
     "titleEditClient": "Edit Client",
     "titleEditVehicle": "Edit Vehicle",
     "dialogDeleteTitle": "Delete?",
-    "dialogDeleteContent": "This will delete the record permanently."
+    "dialogDeleteContent": "This will delete the record permanently.",
+    "labelSelectServices": "Select Services",
+    "labelTotal": "Estimated Total",
+    "msgSelectService": "Select at least one service!",
+    "msgSelectClientVehicle": "Select Client and Vehicle!"
 }

@@ -15,22 +15,56 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
+  // --- 1. Método de Validação de Email (Regex) ---
+  bool _isValidEmail(String email) {
+    // Regex padrão para validar formato de e-mail (ex: texto@texto.texto)
+    final emailRegex = RegExp(
+      r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
+    );
+    return emailRegex.hasMatch(email);
+  }
+
   Future<void> _signUp() async {
-    if (_nameController.text.isEmpty ||
-        _emailController.text.isEmpty ||
-        _passwordController.text.isEmpty) {
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    // 1. Validação de Campos Vazios
+    if (name.isEmpty || email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Preencha todos os campos')));
       return;
     }
 
+    // 2. Validação de Formato de Email
+    if (!_isValidEmail(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('E-mail inválido. Verifique o formato.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // 3. Validação de Senha (Mínimo 6 caracteres - padrão Supabase)
+    if (password.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('A senha deve ter pelo menos 6 caracteres.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       await Supabase.instance.client.auth.signUp(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-        data: {'full_name': _nameController.text.trim()},
+        email: email,
+        password: password,
+        data: {'full_name': name},
       );
 
       if (mounted) {
@@ -80,7 +114,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           padding: const EdgeInsets.all(24.0),
           child: Center(
             child: Container(
-              // Limita a largura no PC para 500px (um pouco mais largo que login para caber bem)
+              // Limita a largura no PC para 500px
               width: isLargeScreen ? 500 : double.infinity,
               padding: isLargeScreen
                   ? const EdgeInsets.all(40)
@@ -101,7 +135,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Ícone de destaque (Opcional, mas fica bonito no cadastro)
+                  // Ícone de destaque
                   if (isLargeScreen) ...[
                     const Icon(
                       Icons.person_add,
@@ -130,10 +164,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   const SizedBox(height: 15),
                   TextField(
                     controller: _emailController,
+                    keyboardType:
+                        TextInputType.emailAddress, // Teclado otimizado para @
                     decoration: const InputDecoration(
                       labelText: 'Email',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.email),
+                      hintText: 'exemplo@email.com', // Ajuda visual
                     ),
                   ),
                   const SizedBox(height: 15),
@@ -158,7 +195,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF1E88E5),
                               foregroundColor: Colors.white,
-                              elevation: isLargeScreen ? 2 : 1, // Sombra sutil
+                              elevation: isLargeScreen ? 2 : 1,
                             ),
                             child: const Text(
                               'CADASTRAR',

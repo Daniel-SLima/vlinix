@@ -15,15 +15,17 @@ class AddAppointmentScreen extends StatefulWidget {
 }
 
 class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
-  // Dados dos Dropdowns
+  // Dados do Banco
   List<Map<String, dynamic>> _clients = [];
-  List<Map<String, dynamic>> _services = [];
+  List<Map<String, dynamic>> _allServices = []; // Lista completa disponível
   List<Map<String, dynamic>> _clientVehicles = [];
 
-  // Seleções
+  // Seleções do Usuário
   int? _selectedClientId;
   int? _selectedVehicleId;
-  int? _selectedServiceId;
+
+  // --- LISTA DE SERVIÇOS SELECIONADOS (NOVO) ---
+  List<Map<String, dynamic>> _selectedServices = [];
 
   // Data e Hora
   late DateTime _selectedDate;
@@ -35,7 +37,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
   void initState() {
     super.initState();
 
-    // Configura data/hora inicial
+    // Configura data/hora
     if (widget.appointmentToEdit != null) {
       final startTime = DateTime.parse(
         widget.appointmentToEdit!['start_time'],
@@ -45,7 +47,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
 
       _selectedClientId = widget.appointmentToEdit!['client_id'];
       _selectedVehicleId = widget.appointmentToEdit!['vehicle_id'];
-      _selectedServiceId = widget.appointmentToEdit!['service_id'];
     } else {
       _selectedDate = DateTime.now();
       _selectedTime = TimeOfDay.now();
@@ -54,19 +55,18 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
     _fetchInitialData();
   }
 
-  // Carrega Clientes e Serviços
+  // Carrega Dados Iniciais
   Future<void> _fetchInitialData() async {
     final supabase = Supabase.instance.client;
 
     try {
-      // --- MUDANÇA 1: FILTRO DE CLIENTES ---
-      // Usamos 'vehicles!inner(id)' para trazer APENAS clientes que tenham veículos.
-      // O !inner força o banco a ignorar clientes sem carros.
+      // 1. Clientes (Só quem tem veículo)
       final clientsData = await supabase
           .from('clients')
           .select('*, vehicles!inner(id)')
           .order('full_name');
 
+      // 2. Serviços Disponíveis
       final servicesData = await supabase
           .from('services')
           .select()
@@ -75,20 +75,50 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
       if (mounted) {
         setState(() {
           _clients = List<Map<String, dynamic>>.from(clientsData);
-          _services = List<Map<String, dynamic>>.from(servicesData);
+          _allServices = List<Map<String, dynamic>>.from(servicesData);
         });
 
-        // Se estiver editando, precisamos carregar os veículos do cliente selecionado
+        // Se estiver editando, carrega veículos
         if (_selectedClientId != null) {
           _fetchVehicles(_selectedClientId!);
         }
+
+        // --- LÓGICA DE EDIÇÃO (LEGADO VS NOVO) ---
+        if (widget.appointmentToEdit != null) {
+          // A. Verifica se já existem itens na tabela nova (appointment_services)
+          final itemsData = await supabase
+              .from('appointment_services')
+              .select('service_id, services(*)') // Join para pegar detalhes
+              .eq('appointment_id', widget.appointmentToEdit!['id']);
+
+          if (itemsData.isNotEmpty) {
+            setState(() {
+              _selectedServices = List<Map<String, dynamic>>.from(
+                itemsData.map((item) => item['services']),
+              );
+            });
+          }
+          // B. Fallback: Se não achar na nova, verifica se tem ID antigo na tabela appointments
+          else if (widget.appointmentToEdit!['service_id'] != null) {
+            final legacyId = widget.appointmentToEdit!['service_id'];
+            final legacyService = _allServices.firstWhere(
+              (s) => s['id'] == legacyId,
+              orElse: () => {},
+            );
+            if (legacyService.isNotEmpty) {
+              setState(() {
+                _selectedServices.add(legacyService);
+              });
+            }
+          }
+        }
       }
     } catch (e) {
-      debugPrint('Erro ao carregar dados iniciais: $e');
+      debugPrint('Erro init: $e');
     }
   }
 
-  // Carrega Veículos com Validação Inteligente
+  // Carrega Veículos
   Future<void> _fetchVehicles(int clientId) async {
     final vehiclesData = await Supabase.instance.client
         .from('vehicles')
@@ -99,12 +129,10 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
       setState(() {
         _clientVehicles = List<Map<String, dynamic>>.from(vehiclesData);
 
-        // --- MUDANÇA 2: SELEÇÃO AUTOMÁTICA ---
-        // Se tiver APENAS UM carro, seleciona automaticamente
+        // Seleção Automática (Se só tiver 1)
         if (_clientVehicles.length == 1) {
           _selectedVehicleId = _clientVehicles.first['id'];
         } else {
-          // Se tiver mais de um (ou zero), verifica se o selecionado ainda é válido
           if (_selectedVehicleId != null) {
             final exists = _clientVehicles.any(
               (v) => v['id'] == _selectedVehicleId,
@@ -118,8 +146,68 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
     }
   }
 
-  // --- LÓGICA DO GOOGLE CALENDAR ---
+  // --- UI: DIALOG DE SELEÇÃO MÚLTIPLA ---
+  void _showMultiSelectServices() {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text('Selecione os Serviços'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _allServices.length,
+                  itemBuilder: (context, index) {
+                    final service = _allServices[index];
+                    final isSelected = _selectedServices.any(
+                      (s) => s['id'] == service['id'],
+                    );
 
+                    return CheckboxListTile(
+                      title: Text(service['name']),
+                      subtitle: Text('R\$ ${service['price']}'),
+                      value: isSelected,
+                      onChanged: (bool? value) {
+                        setStateDialog(() {
+                          if (value == true) {
+                            _selectedServices.add(service);
+                          } else {
+                            _selectedServices.removeWhere(
+                              (s) => s['id'] == service['id'],
+                            );
+                          }
+                        });
+                        // Atualiza a tela de trás (AddAppointmentScreen) para recalcular total
+                        this.setState(() {});
+                      },
+                    );
+                  },
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  double get _totalPrice {
+    return _selectedServices.fold(
+      0.0,
+      (sum, item) => sum + (item['price'] ?? 0),
+    );
+  }
+
+  // --- GOOGLE CALENDAR ---
   Future<String?> _getSessionToken() async {
     final session = Supabase.instance.client.auth.currentSession;
     return session?.providerToken;
@@ -164,58 +252,22 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
         return json['id'];
       }
     } catch (e) {
-      debugPrint('Erro Create Google: $e');
+      debugPrint('Erro Google: $e');
     }
     return null;
   }
 
-  Future<void> _updateGoogleEvent({
-    required String googleEventId,
-    required String title,
-    required String description,
-    required DateTime startTime,
-    required DateTime endTime,
-  }) async {
-    final token = await _getSessionToken();
-    if (token == null) return;
-
-    final event = {
-      'summary': title,
-      'description': description,
-      'start': {
-        'dateTime': startTime.toIso8601String(),
-        'timeZone': 'America/Sao_Paulo',
-      },
-      'end': {
-        'dateTime': endTime.toIso8601String(),
-        'timeZone': 'America/Sao_Paulo',
-      },
-    };
-
-    try {
-      await http.put(
-        Uri.parse(
-          'https://www.googleapis.com/calendar/v3/calendars/primary/events/$googleEventId',
-        ),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(event),
-      );
-    } catch (e) {
-      debugPrint('Erro Update Google: $e');
-    }
-  }
-
   // --- SALVAR ---
-
   Future<void> _save() async {
-    if (_selectedClientId == null ||
-        _selectedVehicleId == null ||
-        _selectedServiceId == null) {
+    if (_selectedClientId == null || _selectedVehicleId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Preencha todos os campos!')),
+        const SnackBar(content: Text('Selecione Cliente e Veículo!')),
+      );
+      return;
+    }
+    if (_selectedServices.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecione pelo menos um serviço!')),
       );
       return;
     }
@@ -223,6 +275,10 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
     setState(() => _isLoading = true);
 
     try {
+      final supabase = Supabase.instance.client;
+      final userId = supabase.auth.currentUser!.id;
+
+      // 1. Datas
       final finalDateTime = DateTime(
         _selectedDate.year,
         _selectedDate.month,
@@ -232,72 +288,79 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
       );
       final endTime = finalDateTime.add(const Duration(hours: 1));
 
+      // 2. Textos
       final clientName = _clients.firstWhere(
         (c) => c['id'] == _selectedClientId,
       )['full_name'];
-      final serviceName = _services.firstWhere(
-        (s) => s['id'] == _selectedServiceId,
-      )['name'];
-      final googleTitle = 'Vlinix: $serviceName - $clientName';
-      final googleDesc = 'Agendamento App Vlinix';
+      final servicesNames = _selectedServices.map((s) => s['name']).join(' + ');
 
-      final supabase = Supabase.instance.client;
-      final userId = supabase.auth.currentUser!.id;
+      final googleTitle = 'Vlinix: $servicesNames - $clientName';
+      final googleDesc = 'Serviços: $servicesNames\nTotal: R\$ $_totalPrice';
 
+      // 3. Google Calendar (Somente Criação por enquanto para simplificar)
+      String? googleEventId;
       if (widget.appointmentToEdit == null) {
-        // --- CRIAÇÃO ---
-        String? newGoogleId = await _createGoogleEvent(
+        googleEventId = await _createGoogleEvent(
           title: googleTitle,
           description: googleDesc,
           startTime: finalDateTime,
           endTime: endTime,
         );
+      }
 
-        await supabase.from('appointments').insert({
-          'user_id': userId,
-          'client_id': _selectedClientId,
-          'vehicle_id': _selectedVehicleId,
-          'service_id': _selectedServiceId,
-          'start_time': finalDateTime.toUtc().toIso8601String(),
-          'status': 'pendente',
-          'google_event_id': newGoogleId,
-        });
+      // 4. Salvar Agendamento (PAI)
+      int appointmentId;
+
+      if (widget.appointmentToEdit == null) {
+        // Create
+        final response = await supabase
+            .from('appointments')
+            .insert({
+              'user_id': userId,
+              'client_id': _selectedClientId,
+              'vehicle_id': _selectedVehicleId,
+              'start_time': finalDateTime.toUtc().toIso8601String(),
+              'status': 'pendente',
+              'google_event_id': googleEventId,
+              // 'service_id' agora fica NULL
+            })
+            .select()
+            .single();
+
+        appointmentId = response['id'];
       } else {
-        // --- EDIÇÃO ---
+        // Update
+        appointmentId = widget.appointmentToEdit!['id'];
         await supabase
             .from('appointments')
             .update({
               'client_id': _selectedClientId,
               'vehicle_id': _selectedVehicleId,
-              'service_id': _selectedServiceId,
               'start_time': finalDateTime.toUtc().toIso8601String(),
             })
-            .eq('id', widget.appointmentToEdit!['id']);
+            .eq('id', appointmentId);
 
-        String? currentGoogleId = widget.appointmentToEdit!['google_event_id'];
+        // Remove vínculos antigos para regravar (estratégia segura de update)
+        await supabase
+            .from('appointment_services')
+            .delete()
+            .eq('appointment_id', appointmentId);
+      }
 
-        if (currentGoogleId != null && currentGoogleId.isNotEmpty) {
-          await _updateGoogleEvent(
-            googleEventId: currentGoogleId,
-            title: googleTitle,
-            description: googleDesc,
-            startTime: finalDateTime,
-            endTime: endTime,
-          );
-        } else {
-          String? newId = await _createGoogleEvent(
-            title: googleTitle,
-            description: googleDesc,
-            startTime: finalDateTime,
-            endTime: endTime,
-          );
-          if (newId != null) {
-            await supabase
-                .from('appointments')
-                .update({'google_event_id': newId})
-                .eq('id', widget.appointmentToEdit!['id']);
-          }
-        }
+      // 5. Salvar Itens (FILHOS)
+      final List<Map<String, dynamic>> servicesToInsert = _selectedServices.map(
+        (service) {
+          return {
+            'user_id': userId,
+            'appointment_id': appointmentId,
+            'service_id': service['id'],
+            'price': service['price'],
+          };
+        },
+      ).toList();
+
+      if (servicesToInsert.isNotEmpty) {
+        await supabase.from('appointment_services').insert(servicesToInsert);
       }
 
       if (mounted) {
@@ -324,8 +387,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
   Widget build(BuildContext context) {
     final lang = AppLocalizations.of(context)!;
     final isEditing = widget.appointmentToEdit != null;
-
-    // 1. Detecta tela grande (Responsividade)
     final isLargeScreen = MediaQuery.of(context).size.width > 600;
 
     return Scaffold(
@@ -335,25 +396,15 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      // 2. Fundo responsivo
       backgroundColor: isLargeScreen ? Colors.grey[100] : Colors.white,
 
-      // Validação: Se não tiver clientes (com carros) ou serviços, avisa
-      body: _clients.isEmpty || _services.isEmpty
-          ? Center(
-              child:
-                  _isLoading // Se estiver carregando, mostra load. Se não, avisa.
-                  ? const CircularProgressIndicator()
-                  : const Text(
-                      "Nenhum cliente com veículo ou serviço cadastrado.",
-                    ),
-            )
+      body: _clients.isEmpty || _allServices.isEmpty
+          ? const Center(child: CircularProgressIndicator())
           : Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16.0),
                 child: Center(
                   child: Container(
-                    // 3. Cartão centralizado
                     width: isLargeScreen ? 500 : double.infinity,
                     padding: isLargeScreen
                         ? const EdgeInsets.all(32)
@@ -374,7 +425,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Cliente (Só aparecem os que têm carro devido ao !inner)
+                        // Cliente
                         DropdownButtonFormField<int>(
                           value: _selectedClientId,
                           decoration: InputDecoration(
@@ -426,26 +477,57 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        // Serviço
-                        DropdownButtonFormField<int>(
-                          value: _selectedServiceId,
-                          decoration: InputDecoration(
-                            labelText: lang.labelService,
-                            border: const OutlineInputBorder(),
-                          ),
-                          items: _services
-                              .map(
-                                (s) => DropdownMenuItem(
-                                  value: s['id'] as int,
-                                  child: Text(
-                                    '${s['name']} (R\$ ${s['price']})',
+                        // --- CAMPO DE SERVIÇOS (MULTI-SELECT) ---
+                        InkWell(
+                          onTap: _showMultiSelectServices,
+                          child: InputDecorator(
+                            decoration: const InputDecoration(
+                              labelText: 'Serviços',
+                              border: OutlineInputBorder(),
+                              suffixIcon: Icon(Icons.arrow_drop_down),
+                            ),
+                            child: _selectedServices.isEmpty
+                                ? const Text(
+                                    'Selecione os serviços...',
+                                    style: TextStyle(color: Colors.grey),
+                                  )
+                                : Wrap(
+                                    spacing: 8.0,
+                                    children: _selectedServices.map((s) {
+                                      return Chip(
+                                        label: Text(s['name']),
+                                        backgroundColor: Colors.blue[50],
+                                        deleteIcon: const Icon(
+                                          Icons.close,
+                                          size: 18,
+                                        ),
+                                        onDeleted: () {
+                                          setState(() {
+                                            _selectedServices.remove(s);
+                                          });
+                                        },
+                                      );
+                                    }).toList(),
                                   ),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (value) =>
-                              setState(() => _selectedServiceId = value),
+                          ),
                         ),
+                        // Total
+                        if (_selectedServices.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                'Total Estimado: R\$ $_totalPrice',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: Colors.green,
+                                ),
+                              ),
+                            ),
+                          ),
+
                         const SizedBox(height: 24),
 
                         // Data e Hora

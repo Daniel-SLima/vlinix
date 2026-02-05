@@ -55,5 +55,9 @@
     "titleEditClient": "Editar Cliente",
     "titleEditVehicle": "Editar Vehículo",
     "dialogDeleteTitle": "¿Eliminar?",
-    "dialogDeleteContent": "Esto eliminará el registro permanentemente."
+    "dialogDeleteContent": "Esto eliminará el registro permanentemente.",
+    "labelSelectServices": "Seleccionar Servicios",
+    "labelTotal": "Total Estimado",
+    "msgSelectService": "¡Seleccione al menos un servicio!",
+    "msgSelectClientVehicle": "¡Seleccione Cliente y Vehículo!"
 }
