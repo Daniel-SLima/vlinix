@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
+import 'add_client_screen.dart'; // IMPORTANTE: Importe a nova tela
 
 class ClientsScreen extends StatefulWidget {
   const ClientsScreen({super.key});
@@ -21,7 +22,6 @@ class _ClientsScreenState extends State<ClientsScreen> {
   @override
   void initState() {
     super.initState();
-    // Ouve o que é digitado na busca
     _searchController.addListener(() {
       setState(() {
         _searchText = _searchController.text.toLowerCase();
@@ -35,47 +35,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
     super.dispose();
   }
 
-  // --- CRUD ---
-  Future<void> _createOrUpdateClient({
-    int? id,
-    required String name,
-    required String phone,
-    required String email,
-  }) async {
-    final userId = Supabase.instance.client.auth.currentUser!.id;
-    final data = {
-      'user_id': userId,
-      'full_name': name,
-      'phone': phone,
-      'email': email,
-    };
-
-    try {
-      if (id == null) {
-        await Supabase.instance.client.from('clients').insert(data);
-      } else {
-        await Supabase.instance.client
-            .from('clients')
-            .update(data)
-            .eq('id', id);
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Salvo com sucesso!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
-
+  // --- DELETE ---
   Future<void> _deleteClient(int id) async {
     try {
       await Supabase.instance.client.from('clients').delete().eq('id', id);
@@ -91,56 +51,12 @@ class _ClientsScreenState extends State<ClientsScreen> {
     }
   }
 
-  void _showClientDialog({Map<String, dynamic>? client}) {
-    final lang = AppLocalizations.of(context)!;
-    final nameCtrl = TextEditingController(text: client?['full_name']);
-    final phoneCtrl = TextEditingController(text: client?['phone']);
-    final emailCtrl = TextEditingController(text: client?['email']);
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          client == null ? lang.titleNewClient : lang.titleEditClient,
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: InputDecoration(labelText: lang.labelName),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: phoneCtrl,
-              decoration: InputDecoration(labelText: lang.labelPhone),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: emailCtrl,
-              decoration: InputDecoration(labelText: lang.labelEmail),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(lang.btnCancel),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (nameCtrl.text.isEmpty) return;
-              _createOrUpdateClient(
-                id: client?['id'],
-                name: nameCtrl.text,
-                phone: phoneCtrl.text,
-                email: emailCtrl.text,
-              );
-              Navigator.pop(ctx);
-            },
-            child: Text(lang.btnSave),
-          ),
-        ],
+  // Navegação para a tela de Adicionar/Editar
+  void _navigateToAddEdit({Map<String, dynamic>? client}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddClientScreen(clientToEdit: client),
       ),
     );
   }
@@ -155,8 +71,9 @@ class _ClientsScreenState extends State<ClientsScreen> {
         backgroundColor: const Color(0xFF1E88E5),
         foregroundColor: Colors.white,
       ),
+      // --- FAB Redireciona para tela nova ---
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showClientDialog(),
+        onPressed: () => _navigateToAddEdit(),
         backgroundColor: const Color(0xFF1E88E5),
         foregroundColor: Colors.white,
         child: const Icon(Icons.add),
@@ -234,7 +151,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
                             IconButton(
                               icon: const Icon(Icons.edit, color: Colors.blue),
                               onPressed: () =>
-                                  _showClientDialog(client: client),
+                                  _navigateToAddEdit(client: client),
                             ),
                             IconButton(
                               icon: const Icon(Icons.delete, color: Colors.red),

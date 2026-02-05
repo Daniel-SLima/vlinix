@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
+import 'add_service_screen.dart'; // IMPORTANTE: Importe a nova tela
 
 class ServicesScreen extends StatefulWidget {
   const ServicesScreen({super.key});
@@ -15,23 +16,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
       .stream(primaryKey: ['id'])
       .order('name');
 
-  // --- Lógica de CRUD ---
-  Future<void> _createOrUpdate(int? id, String name, double price) async {
-    // --- ALTERAÇÃO AQUI ---
-    final userId = Supabase.instance.client.auth.currentUser!.id;
-    final data = {
-      'user_id': userId, // Adicionado user_id
-      'name': name,
-      'price': price,
-    };
-
-    if (id == null) {
-      await Supabase.instance.client.from('services').insert(data);
-    } else {
-      await Supabase.instance.client.from('services').update(data).eq('id', id);
-    }
-  }
-
+  // A função de Delete continua aqui pois é uma ação rápida na lista
   Future<void> _delete(int id) async {
     try {
       await Supabase.instance.client.from('services').delete().eq('id', id);
@@ -39,7 +24,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Erro: Serviço em uso!'),
+            content: Text('Erro: Serviço em uso ou falha ao excluir!'),
             backgroundColor: Colors.red,
           ),
         );
@@ -47,51 +32,12 @@ class _ServicesScreenState extends State<ServicesScreen> {
     }
   }
 
-  void _showDialog({Map<String, dynamic>? service}) {
-    final lang = AppLocalizations.of(context)!;
-    final nameCtrl = TextEditingController(text: service?['name']);
-    final priceCtrl = TextEditingController(
-      text: service?['price']?.toString(),
-    );
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(service == null ? lang.btnNew : 'Editar Serviço'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: InputDecoration(labelText: lang.labelService),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: priceCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Preço (R\$)'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(lang.btnCancel),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (nameCtrl.text.isNotEmpty && priceCtrl.text.isNotEmpty) {
-                _createOrUpdate(
-                  service?['id'],
-                  nameCtrl.text,
-                  double.parse(priceCtrl.text.replaceAll(',', '.')),
-                );
-                Navigator.pop(ctx);
-              }
-            },
-            child: Text(lang.btnSave),
-          ),
-        ],
+  // Função para navegar para a tela de adicionar/editar
+  void _navigateToAddEdit({Map<String, dynamic>? service}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddServiceScreen(serviceToEdit: service),
       ),
     );
   }
@@ -106,18 +52,21 @@ class _ServicesScreenState extends State<ServicesScreen> {
         backgroundColor: const Color(0xFF1E88E5),
         foregroundColor: Colors.white,
       ),
-      // --- O BOTÃO QUE FALTAVA ESTÁ AQUI ---
+
+      // Botão Flutuante leva para a tela nova (Modo Criação)
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showDialog(),
+        onPressed: () => _navigateToAddEdit(),
         backgroundColor: const Color(0xFF1E88E5),
         foregroundColor: Colors.white,
         child: const Icon(Icons.add),
       ),
+
       body: StreamBuilder(
         stream: _stream,
         builder: (ctx, snap) {
-          if (!snap.hasData)
+          if (!snap.hasData) {
             return const Center(child: CircularProgressIndicator());
+          }
           final list = snap.data as List;
 
           if (list.isEmpty) {
@@ -143,9 +92,10 @@ class _ServicesScreenState extends State<ServicesScreen> {
                         ),
                       ),
                       const SizedBox(width: 10),
+                      // Botão Editar leva para a tela nova (Modo Edição)
                       IconButton(
                         icon: const Icon(Icons.edit, color: Colors.blue),
-                        onPressed: () => _showDialog(service: item),
+                        onPressed: () => _navigateToAddEdit(service: item),
                       ),
                       IconButton(
                         icon: const Icon(Icons.delete, color: Colors.red),
