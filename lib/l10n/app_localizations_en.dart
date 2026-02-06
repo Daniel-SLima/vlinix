@@ -191,4 +191,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get msgSelectClientVehicle => 'Select Client and Vehicle!';
+
+  @override
+  String get tooltipEditProfile => 'Edit Profile';
 }

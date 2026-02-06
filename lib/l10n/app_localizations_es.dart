@@ -192,4 +192,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get msgSelectClientVehicle => '¡Seleccione Cliente y Vehículo!';
+
+  @override
+  String get tooltipEditProfile => 'Editar Perfil';
 }

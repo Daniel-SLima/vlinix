@@ -13,6 +13,7 @@ import 'finance_screen.dart';
 import 'add_client_screen.dart';
 import 'add_vehicle_screen.dart';
 import 'add_appointment_screen.dart';
+import 'edit_profile_screen.dart'; // <--- IMPORTANTE: Importe a tela de edição
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -55,9 +56,6 @@ class _HomeScreenState extends State<HomeScreen> {
         59,
       ).toUtc().toIso8601String();
 
-      // QUERY ATUALIZADA:
-      // Agora buscamos 'appointment_services' para pegar múltiplos itens e preços.
-      // Mantemos 'services(name)' para compatibilidade com dados antigos.
       const selectQuery = '''
         *,
         clients(full_name),
@@ -209,27 +207,17 @@ class _HomeScreenState extends State<HomeScreen> {
     return DateFormat('HH:mm').format(DateTime.parse(isoString).toLocal());
   }
 
-  // --- LÓGICA DE PROCESSAMENTO DOS DADOS DO AGENDAMENTO ---
   Map<String, dynamic> _processAppointmentData(Map<String, dynamic> apt) {
     String serviceNames = '';
     double totalPrice = 0.0;
 
-    // 1. Tenta pegar da nova tabela (Múltiplos)
     if (apt['appointment_services'] != null &&
         (apt['appointment_services'] as List).isNotEmpty) {
       final items = apt['appointment_services'] as List;
-
-      // Concatena nomes: "Lavagem, Cera"
       serviceNames = items.map((i) => i['services']['name']).join(', ');
-
-      // Soma preços
       totalPrice = items.fold(0.0, (sum, i) => sum + (i['price'] ?? 0.0));
-    }
-    // 2. Fallback: Tenta pegar da estrutura antiga (Legado)
-    else if (apt['services'] != null) {
+    } else if (apt['services'] != null) {
       serviceNames = apt['services']['name'];
-      // Como não temos o preço histórico na tabela antiga facilmente aqui,
-      // podemos assumir 0 ou tentar pegar do cadastro atual, mas vamos deixar 0 no fallback visual.
     } else {
       serviceNames = 'Serviço não identificado';
     }
@@ -249,9 +237,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final String displayName = _user?.userMetadata?['full_name'] ?? 'Usuário';
-    final String email = _user?.email ?? 'email@vlinix.com';
-    final String? photoUrl = _user?.userMetadata?['avatar_url'];
+    // Busca dados atualizados do usuário diretamente do objeto _user
+    // (Ou recarrega do Supabase se necessário, mas o objeto costuma manter cache)
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    final String displayName =
+        currentUser?.userMetadata?['full_name'] ?? 'Usuário';
+    final String email = currentUser?.email ?? 'email@vlinix.com';
+    final String? photoUrl = currentUser?.userMetadata?['avatar_url'];
+
     final lang = AppLocalizations.of(context)!;
 
     return Scaffold(
@@ -405,6 +398,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // --- DRAWER COM O BOTÃO DE EDITAR PERFIL ---
   Widget _buildDrawer(
     String name,
     String email,
@@ -426,6 +420,29 @@ class _HomeScreenState extends State<HomeScreen> {
               backgroundImage: photo != null ? NetworkImage(photo) : null,
               child: photo == null ? const Icon(Icons.person) : null,
             ),
+            // --- AQUI ESTÁ O BOTÃO DO LÁPIS ---
+            otherAccountsPictures: [
+              IconButton(
+                icon: const Icon(Icons.edit, color: Colors.white),
+                tooltip: lang.tooltipEditProfile, // Usa a tradução
+                onPressed: () async {
+                  Navigator.pop(context); // Fecha o drawer
+
+                  // Abre a tela de editar e espera o retorno
+                  final bool? updated = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const EditProfileScreen(),
+                    ),
+                  );
+
+                  // Se retornou true, recarrega a tela para mostrar nome/foto novos
+                  if (updated == true) {
+                    setState(() {});
+                  }
+                },
+              ),
+            ],
           ),
           ListTile(
             leading: const Icon(Icons.dashboard, color: Color(0xFF1E88E5)),
@@ -547,7 +564,7 @@ class _HomeScreenState extends State<HomeScreen> {
       itemCount: list.length,
       itemBuilder: (context, index) {
         final apt = list[index];
-        final data = _processAppointmentData(apt); // Processa nomes e totais
+        final data = _processAppointmentData(apt);
 
         return Card(
           elevation: 2,

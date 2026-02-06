@@ -59,5 +59,10 @@
     "labelSelectServices": "Selecionar Serviços",
     "labelTotal": "Total Estimado",
     "msgSelectService": "Selecione pelo menos um serviço!",
-    "msgSelectClientVehicle": "Selecione Cliente e Veículo!"
+    "msgSelectClientVehicle": "Selecione Cliente e Veículo!",
+    "labelSelectServices": "Selecionar Serviços",
+    "labelTotal": "Total Estimado",
+    "msgSelectService": "Selecione pelo menos um serviço!",
+    "msgSelectClientVehicle": "Selecione Cliente e Veículo!",
+    "tooltipEditProfile": "Editar Perfil"
 }

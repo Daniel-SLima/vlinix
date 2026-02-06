@@ -465,6 +465,12 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Selecione Cliente e Veículo!'**
   String get msgSelectClientVehicle;
+
+  /// No description provided for @tooltipEditProfile.
+  ///
+  /// In pt, this message translates to:
+  /// **'Editar Perfil'**
+  String get tooltipEditProfile;
 }
 
 class _AppLocalizationsDelegate
