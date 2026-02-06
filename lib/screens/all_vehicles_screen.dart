@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
 import 'package:vlinix/theme/app_colors.dart';
-import 'package:vlinix/widgets/user_profile_menu.dart';
+import 'package:vlinix/widgets/user_profile_menu.dart'; // <--- IMPORTANTE
 import 'add_vehicle_screen.dart';
 
 class AllVehiclesScreen extends StatefulWidget {
@@ -15,6 +15,8 @@ class AllVehiclesScreen extends StatefulWidget {
 class _AllVehiclesScreenState extends State<AllVehiclesScreen> {
   final _searchController = TextEditingController();
   String _searchText = '';
+
+  // Lista de clientes para a BUSCA por nome do dono
   List<Map<String, dynamic>> _clients = [];
 
   final _vehiclesStream = Supabase.instance.client
@@ -45,6 +47,7 @@ class _AllVehiclesScreenState extends State<AllVehiclesScreen> {
     }
   }
 
+  // --- DELETE ---
   Future<void> _deleteVehicle(int id) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -115,29 +118,37 @@ class _AllVehiclesScreenState extends State<AllVehiclesScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        // --- 1. AVATAR ---
         leading: const Padding(
           padding: EdgeInsets.all(8.0),
           child: UserProfileMenu(),
         ),
+
         title: Text(lang.titleAllVehicles),
         centerTitle: true,
+        // Theme cuida das cores
       ),
+
       floatingActionButton: FloatingActionButton(
         onPressed: () => _navigateToAddEdit(),
-        backgroundColor: AppColors.accent,
+        backgroundColor: AppColors.accent, // Dourado
         foregroundColor: Colors.white,
         child: const Icon(Icons.add),
       ),
+
       body: Column(
         children: [
+          // --- BARRA DE PESQUISA ---
           Container(
             padding: const EdgeInsets.all(16.0),
             color: Colors.white,
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                labelText: lang.hintSearchVehicle, // Tenta usar a tradução
-                hintText: lang.hintSearchGeneric, // Tenta usar a tradução
+                labelText: lang
+                    .hintSearchVehicle, // <--- Traduzido (Pesquisar Veículo)
+                hintText:
+                    lang.hintSearchGeneric, // <--- Traduzido (Modelo, placa...)
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
                 fillColor: AppColors.background,
@@ -160,6 +171,8 @@ class _AllVehiclesScreenState extends State<AllVehiclesScreen> {
               ),
             ),
           ),
+
+          // --- LISTA ---
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: _vehiclesStream,
@@ -167,7 +180,9 @@ class _AllVehiclesScreenState extends State<AllVehiclesScreen> {
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
+
                 final allVehicles = snapshot.data!;
+
                 final vehicles = allVehicles.where((v) {
                   if (_searchText.isEmpty) return true;
                   final model = (v['model'] ?? '').toString().toLowerCase();
@@ -224,14 +239,12 @@ class _AllVehiclesScreenState extends State<AllVehiclesScreen> {
                         leading: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            // CORREÇÃO: withOpacity -> withValues (se seu Flutter for novo)
-                            // Se der erro no withValues, volte para withOpacity.
                             color: AppColors.primary.withOpacity(0.1),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
                             Icons.directions_car,
-                            color: AppColors.primary,
+                            color: AppColors.primary, // Ícone Chumbo
                           ),
                         ),
                         title: Text(
@@ -256,7 +269,7 @@ class _AllVehiclesScreenState extends State<AllVehiclesScreen> {
                                   Icons.person,
                                   size: 12,
                                   color: AppColors.accent,
-                                ),
+                                ), // Ícone Dourado
                                 const SizedBox(width: 4),
                                 Text(
                                   ownerName.isNotEmpty ? ownerName : 'Sem dono',

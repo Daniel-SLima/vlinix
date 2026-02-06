@@ -74,7 +74,6 @@ class _MainScreenState extends State<MainScreen> {
             height: 65,
             backgroundColor:
                 Colors.white, // Fundo branco na barra para limpeza visual
-
             // Se preferir fundo Chumbo (Dark Mode na barra), troque por AppColors.primary
             selectedIndex: _currentIndex,
             onDestinationSelected: _onTabTapped,
