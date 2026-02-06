@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
+import 'package:vlinix/theme/app_colors.dart'; // <--- IMPORTANTE
 
 class AddClientScreen extends StatefulWidget {
   final Map<String, dynamic>? clientToEdit;
@@ -20,7 +21,7 @@ class _AddClientScreenState extends State<AddClientScreen> {
   String _selectedCountryCode = '+1';
   bool _isLoading = false;
 
-  // Lista de Países (Mercado Norte-Americano + Brasil)
+  // Lista de Países
   final List<Map<String, String>> _countryCodes = [
     {'code': '+1', 'flag': '🇺🇸', 'label': 'USA (+1)', 'value': 'US+1'},
     {'code': '+1', 'flag': '🇨🇦', 'label': 'CAN (+1)', 'value': 'CA+1'},
@@ -121,7 +122,7 @@ class _AddClientScreenState extends State<AddClientScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Cliente salvo com sucesso!'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.success,
           ),
         );
         Navigator.pop(context);
@@ -131,7 +132,7 @@ class _AddClientScreenState extends State<AddClientScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erro ao salvar: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.error,
           ),
         );
       }
@@ -152,12 +153,10 @@ class _AddClientScreenState extends State<AddClientScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditing ? lang.titleEditClient : lang.titleNewClient),
-        backgroundColor: const Color(0xFF1E88E5),
-        foregroundColor: Colors.white,
-        elevation: 0,
+        centerTitle: true,
+        // Cor e estilo vêm do Theme
       ),
-      backgroundColor: isLargeScreen ? Colors.grey[100] : Colors.white,
-
+      backgroundColor: AppColors.background,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
@@ -183,12 +182,23 @@ class _AddClientScreenState extends State<AddClientScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Ícone de cabeçalho
+                  if (isLargeScreen) ...[
+                    const Icon(
+                      Icons.person_add_alt_1,
+                      size: 60,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+
+                  // Campo Nome
                   TextField(
                     controller: _nameController,
                     decoration: InputDecoration(
                       labelText: lang.labelName,
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.person),
+                      prefixIcon: const Icon(Icons.person_outline),
+                      // Theme cuida das bordas
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -199,15 +209,16 @@ class _AddClientScreenState extends State<AddClientScreen> {
                     children: [
                       // Dropdown de País
                       Container(
-                        height: inputHeight, // Altura fixa igual ao TextField
+                        height: inputHeight,
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         decoration: BoxDecoration(
-                          border: Border.all(
-                            color: Colors.grey,
-                          ), // Mesma cor da borda padrão
+                          color: Colors.white, // Fundo branco
+                          border: Border.all(color: Colors.grey),
                           borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(4),
-                            bottomLeft: Radius.circular(4),
+                            topLeft: Radius.circular(
+                              8,
+                            ), // Arredondado igual ao theme
+                            bottomLeft: Radius.circular(8),
                           ),
                         ),
                         alignment: Alignment.center,
@@ -217,7 +228,7 @@ class _AddClientScreenState extends State<AddClientScreen> {
                             icon: const Icon(Icons.arrow_drop_down),
                             style: const TextStyle(
                               color: Colors.black87,
-                              fontSize: 16, // Tamanho de fonte padrão do input
+                              fontSize: 16,
                             ),
                             onChanged: (newValue) {
                               setState(() {
@@ -254,30 +265,32 @@ class _AddClientScreenState extends State<AddClientScreen> {
                       // Campo de Número (Grudado na direita)
                       Expanded(
                         child: SizedBox(
-                          height: inputHeight, // Garante altura igual
+                          height: inputHeight,
                           child: TextField(
                             controller: _phoneController,
                             keyboardType: TextInputType.phone,
-                            // Remove o padding vertical padrão para alinhar o texto
                             textAlignVertical: TextAlignVertical.center,
                             decoration: InputDecoration(
                               labelText: lang.labelPhone,
-                              prefixIcon: null,
-                              // Remove a borda esquerda para "grudar" no dropdown
+                              prefixIcon:
+                                  null, // Sem ícone para colar no dropdown
+                              filled: true,
+                              fillColor: Colors.white,
+                              // Bordas manuais para garantir que "grude" no dropdown
                               enabledBorder: const OutlineInputBorder(
                                 borderRadius: BorderRadius.only(
-                                  topRight: Radius.circular(4),
-                                  bottomRight: Radius.circular(4),
+                                  topRight: Radius.circular(8),
+                                  bottomRight: Radius.circular(8),
                                 ),
                                 borderSide: BorderSide(color: Colors.grey),
                               ),
                               focusedBorder: const OutlineInputBorder(
                                 borderRadius: BorderRadius.only(
-                                  topRight: Radius.circular(4),
-                                  bottomRight: Radius.circular(4),
+                                  topRight: Radius.circular(8),
+                                  bottomRight: Radius.circular(8),
                                 ),
                                 borderSide: BorderSide(
-                                  color: Color(0xFF1E88E5),
+                                  color: AppColors.accent, // Dourado ao focar
                                   width: 2,
                                 ),
                               ),
@@ -292,26 +305,32 @@ class _AddClientScreenState extends State<AddClientScreen> {
                   ),
 
                   const SizedBox(height: 16),
+
+                  // Campo Email
                   TextField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     decoration: InputDecoration(
                       labelText: lang.labelEmail,
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.email),
+                      prefixIcon: const Icon(Icons.email_outlined),
                       hintText: 'cliente@email.com',
                     ),
                   ),
+
                   const SizedBox(height: 32),
+
+                  // Botão Salvar
                   SizedBox(
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _save,
+                      // Style vem do Theme (Chumbo arredondado)
+                      // Apenas forçamos o shape igual ao Login
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1E88E5),
-                        foregroundColor: Colors.white,
-                        elevation: isLargeScreen ? 2 : 1,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
                       ),
                       child: _isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
@@ -319,6 +338,7 @@ class _AddClientScreenState extends State<AddClientScreen> {
                               lang.btnSave.toUpperCase(),
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
+                                letterSpacing: 1,
                               ),
                             ),
                     ),

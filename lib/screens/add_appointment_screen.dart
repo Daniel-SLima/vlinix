@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'package:vlinix/l10n/app_localizations.dart';
+import 'package:vlinix/theme/app_colors.dart'; // <--- IMPORTANTE
 
 class AddAppointmentScreen extends StatefulWidget {
   final Map<String, dynamic>? appointmentToEdit;
@@ -142,7 +143,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
     }
   }
 
-  // --- MUDANÇA AQUI: DIALOG RESPONSIVO ---
+  // --- DIALOG RESPONSIVO E TEMATIZADO ---
   void _showMultiSelectServices() {
     final isLargeScreen = MediaQuery.of(context).size.width > 600;
     final lang = AppLocalizations.of(context)!;
@@ -152,32 +153,28 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
-            // Usamos Dialog + Container para controlar a largura exata
             return Dialog(
               backgroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Container(
-                // AQUI ESTÁ O SEGREDO: Largura fixa no PC, ou ajustada no celular
                 width: isLargeScreen ? 500 : null,
                 constraints: BoxConstraints(
-                  maxHeight:
-                      MediaQuery.of(context).size.height *
-                      0.8, // Altura máx 80% da tela
+                  maxHeight: MediaQuery.of(context).size.height * 0.8,
                 ),
                 padding: const EdgeInsets.all(24),
                 child: Column(
-                  mainAxisSize:
-                      MainAxisSize.min, // Encolhe se tiver poucos itens
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Título
                     Text(
-                      lang.labelSelectServices, // "Selecionar Serviços"
+                      lang.labelSelectServices,
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
+                        color: AppColors.primary, // Chumbo
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -206,7 +203,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                               'R\$ ${service['price']}',
                               style: TextStyle(color: Colors.grey[600]),
                             ),
-                            activeColor: const Color(0xFF1E88E5),
+                            activeColor: AppColors.accent, // Checkbox Dourado!
                             value: isSelected,
                             onChanged: (bool? value) {
                               setStateDialog(() {
@@ -229,16 +226,15 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
 
                     const SizedBox(height: 24),
 
-                    // Botão Fechar
+                    // Botão Fechar (Chumbo)
                     SizedBox(
                       width: double.infinity,
                       height: 45,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1E88E5),
-                          foregroundColor: Colors.white,
+                          // Theme já é Chumbo, mas forçamos o shape
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(30),
                           ),
                         ),
                         onPressed: () => Navigator.pop(context),
@@ -372,7 +368,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
       int appointmentId;
 
       if (widget.appointmentToEdit == null) {
-        // Create
         final response = await supabase
             .from('appointments')
             .insert({
@@ -388,7 +383,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
 
         appointmentId = response['id'];
       } else {
-        // Update
         appointmentId = widget.appointmentToEdit!['id'];
         await supabase
             .from('appointments')
@@ -426,7 +420,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Agendamento salvo com sucesso!'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.success,
           ),
         );
         Navigator.pop(context);
@@ -434,7 +428,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.error),
         );
       }
     } finally {
@@ -451,12 +445,10 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditing ? lang.titleEditClient : lang.btnNew),
-        backgroundColor: const Color(0xFF1E88E5),
-        foregroundColor: Colors.white,
-        elevation: 0,
+        centerTitle: true,
+        // Theme cuida das cores
       ),
-      backgroundColor: isLargeScreen ? Colors.grey[100] : Colors.white,
-
+      backgroundColor: AppColors.background,
       body: _clients.isEmpty || _allServices.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : Center(
@@ -484,12 +476,21 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        if (isLargeScreen) ...[
+                          const Icon(
+                            Icons.calendar_month,
+                            size: 60,
+                            color: AppColors.primary,
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+
                         // Cliente
                         DropdownButtonFormField<int>(
                           value: _selectedClientId,
                           decoration: InputDecoration(
                             labelText: lang.labelClient,
-                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.person),
                           ),
                           items: _clients
                               .map(
@@ -516,7 +517,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                           value: _selectedVehicleId,
                           decoration: InputDecoration(
                             labelText: lang.labelVehicle,
-                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.directions_car),
                           ),
                           items: _clientVehicles
                               .map(
@@ -541,9 +542,9 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                           onTap: _showMultiSelectServices,
                           child: InputDecorator(
                             decoration: InputDecoration(
-                              labelText: lang.labelService, // "Serviço"
-                              border: const OutlineInputBorder(),
+                              labelText: lang.labelService,
                               suffixIcon: const Icon(Icons.arrow_drop_down),
+                              // Mantém o estilo do Theme
                             ),
                             child: _selectedServices.isEmpty
                                 ? Text(
@@ -555,10 +556,16 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                                     children: _selectedServices.map((s) {
                                       return Chip(
                                         label: Text(s['name']),
-                                        backgroundColor: Colors.blue[50],
+                                        // Chip Dourado suave
+                                        backgroundColor: AppColors.accent
+                                            .withOpacity(0.1),
+                                        labelStyle: const TextStyle(
+                                          color: AppColors.primary,
+                                        ),
                                         deleteIcon: const Icon(
                                           Icons.close,
                                           size: 18,
+                                          color: AppColors.primary,
                                         ),
                                         onDeleted: () {
                                           setState(() {
@@ -570,6 +577,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                                   ),
                           ),
                         ),
+
                         // Total
                         if (_selectedServices.isNotEmpty)
                           Padding(
@@ -581,7 +589,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
-                                  color: Colors.green,
+                                  color: AppColors.success,
                                 ),
                               ),
                             ),
@@ -594,11 +602,23 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                           children: [
                             Expanded(
                               child: OutlinedButton.icon(
-                                icon: const Icon(Icons.calendar_today),
+                                icon: const Icon(
+                                  Icons.calendar_today,
+                                  color: AppColors.primary,
+                                ),
                                 label: Text(
                                   DateFormat(
                                     'dd/MM/yyyy',
                                   ).format(_selectedDate),
+                                  style: const TextStyle(
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(color: Colors.grey.shade300),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
                                 ),
                                 onPressed: () async {
                                   final date = await showDatePicker(
@@ -606,6 +626,20 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                                     initialDate: _selectedDate,
                                     firstDate: DateTime(2020),
                                     lastDate: DateTime(2030),
+                                    // Customiza cor do calendário se quiser
+                                    builder: (context, child) {
+                                      return Theme(
+                                        data: Theme.of(context).copyWith(
+                                          colorScheme: const ColorScheme.light(
+                                            primary:
+                                                AppColors.primary, // Chumbo
+                                            onPrimary: Colors.white,
+                                            onSurface: AppColors.primary,
+                                          ),
+                                        ),
+                                        child: child!,
+                                      );
+                                    },
                                   );
                                   if (date != null)
                                     setState(() => _selectedDate = date);
@@ -615,12 +649,38 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                             const SizedBox(width: 10),
                             Expanded(
                               child: OutlinedButton.icon(
-                                icon: const Icon(Icons.access_time),
-                                label: Text(_selectedTime.format(context)),
+                                icon: const Icon(
+                                  Icons.access_time,
+                                  color: AppColors.primary,
+                                ),
+                                label: Text(
+                                  _selectedTime.format(context),
+                                  style: const TextStyle(
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(color: Colors.grey.shade300),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                ),
                                 onPressed: () async {
                                   final time = await showTimePicker(
                                     context: context,
                                     initialTime: _selectedTime,
+                                    builder: (context, child) {
+                                      return Theme(
+                                        data: Theme.of(context).copyWith(
+                                          colorScheme: const ColorScheme.light(
+                                            primary: AppColors.primary,
+                                            onPrimary: Colors.white,
+                                            onSurface: AppColors.primary,
+                                          ),
+                                        ),
+                                        child: child!,
+                                      );
+                                    },
                                   );
                                   if (time != null)
                                     setState(() => _selectedTime = time);
@@ -629,6 +689,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                             ),
                           ],
                         ),
+
                         const SizedBox(height: 32),
 
                         // Botão Salvar
@@ -638,9 +699,9 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                           child: ElevatedButton(
                             onPressed: _isLoading ? null : _save,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1E88E5),
-                              foregroundColor: Colors.white,
-                              elevation: isLargeScreen ? 2 : 1,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
                             ),
                             child: _isLoading
                                 ? const CircularProgressIndicator(
@@ -652,6 +713,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                                         : lang.btnSchedule.toUpperCase(),
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
+                                      letterSpacing: 1,
                                     ),
                                   ),
                           ),

@@ -4,7 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
-import 'add_appointment_screen.dart'; // IMPORTANTE: Importe a nova tela
+import 'package:vlinix/theme/app_colors.dart'; // <--- IMPORTANTE
+import 'add_appointment_screen.dart';
 
 class AppointmentsScreen extends StatefulWidget {
   const AppointmentsScreen({super.key});
@@ -20,7 +21,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       .order('start_time', ascending: true);
 
   // --- GOOGLE DELETE ---
-  // Mantemos aqui pois deletar acontece na lista
   Future<String?> _getSessionToken() async {
     final session = Supabase.instance.client.auth.currentSession;
     return session?.providerToken;
@@ -41,6 +41,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(AppLocalizations.of(context)!.msgGoogleDeleted),
+            backgroundColor: AppColors.success,
           ),
         );
       }
@@ -51,6 +52,28 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
 
   // --- APP DELETE ---
   Future<void> _deleteAppointment(int id, String? googleEventId) async {
+    // Confirmação antes de apagar
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Excluir Agendamento?'),
+        content: const Text('Isso apagará do app e do Google Agenda.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
     try {
       if (googleEventId != null && googleEventId.isNotEmpty) {
         await _deleteGoogleEvent(googleEventId);
@@ -61,7 +84,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erro ao excluir: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.error,
           ),
         );
       }
@@ -90,33 +113,62 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     final lang = AppLocalizations.of(context)!;
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(lang.menuAgenda),
-        backgroundColor: const Color(0xFF1E88E5),
-        foregroundColor: Colors.white,
+        centerTitle: true,
+        // Theme cuida das cores (Chumbo)
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _navigateToAddEdit(),
-        label: Text(lang.btnNew),
+        label: Text(
+          lang.btnNew,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         icon: const Icon(Icons.add),
-        backgroundColor: const Color(0xFF1E88E5),
+        backgroundColor: AppColors.accent, // Dourado
         foregroundColor: Colors.white,
       ),
       body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: _appointmentsStream,
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
+          if (snapshot.hasError) {
+            return Center(child: Text('Erro: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
+          }
+
           final appointments = snapshot.data!;
 
-          if (appointments.isEmpty)
-            return Center(child: Text(lang.agendaEmptyUpcoming));
+          if (appointments.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.event_busy, size: 60, color: Colors.grey[300]),
+                  const SizedBox(height: 10),
+                  Text(
+                    lang.agendaEmptyUpcoming,
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
+            );
+          }
 
           return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(
+              16,
+              16,
+              16,
+              80,
+            ), // Espaço pro FAB
             itemCount: appointments.length,
             itemBuilder: (context, index) {
               final apt = appointments[index];
 
+              // Mantemos o FutureBuilder pois a lógica original busca dados individuais
               return FutureBuilder(
                 future: Future.wait([
                   Supabase.instance.client
@@ -135,91 +187,111 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                       .eq('id', apt['service_id'])
                       .single(),
                 ]),
-                builder: (context, AsyncSnapshot<List<dynamic>> detailsSnapshot) {
-                  if (!detailsSnapshot.hasData)
-                    return const LinearProgressIndicator();
+                builder:
+                    (context, AsyncSnapshot<List<dynamic>> detailsSnapshot) {
+                      if (!detailsSnapshot.hasData) {
+                        // Placeholder enquanto carrega os detalhes
+                        return const Card(
+                          child: ListTile(
+                            leading: CircularProgressIndicator(strokeWidth: 2),
+                            title: Text("Carregando..."),
+                          ),
+                        );
+                      }
 
-                  final client = detailsSnapshot.data![0];
-                  final vehicle = detailsSnapshot.data![1];
-                  final service = detailsSnapshot.data![2];
+                      final client = detailsSnapshot.data![0];
+                      final vehicle = detailsSnapshot.data![1];
+                      final service = detailsSnapshot.data![2];
+                      final bool isPending = apt['status'] == 'pendente';
 
-                  return Card(
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: apt['status'] == 'pendente'
-                            ? Colors.orange
-                            : Colors.green,
-                        child: const Icon(
-                          Icons.calendar_today,
-                          color: Colors.white,
-                          size: 18,
+                      return Card(
+                        elevation: 0,
+                        color: Colors.white,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: Colors.grey.shade200),
                         ),
-                      ),
-                      title: Text(
-                        client['full_name'],
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('${vehicle['model']} - ${service['name']}'),
-                          Text(
-                            _formatDate(apt['start_time']),
-                            style: TextStyle(
-                              color: Colors.blue.shade800,
-                              fontWeight: FontWeight.bold,
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          // Indicador Visual de Status
+                          leading: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: isPending
+                                  ? Colors.orange.withOpacity(0.1)
+                                  : AppColors.success.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.calendar_today,
+                              color: isPending
+                                  ? Colors.orange
+                                  : AppColors.success,
+                              size: 20,
                             ),
                           ),
-                        ],
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit, color: Colors.blue),
-                            onPressed: () =>
-                                _navigateToAddEdit(appointment: apt),
+                          title: Text(
+                            client['full_name'],
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (ctx) => AlertDialog(
-                                  title: Text(lang.dialogDeleteTitle),
-                                  content: const Text(
-                                    'Isso apagará do app e do Google Agenda.',
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(ctx),
-                                      child: Text(lang.btnCancel),
-                                    ),
-                                    TextButton(
-                                      onPressed: () {
-                                        _deleteAppointment(
-                                          apt['id'],
-                                          apt['google_event_id'],
-                                        );
-                                        Navigator.pop(ctx);
-                                      },
-                                      child: Text(
-                                        lang.btnDelete,
-                                        style: const TextStyle(
-                                          color: Colors.red,
-                                        ),
-                                      ),
-                                    ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 4),
+                              Text('${vehicle['model']} - ${service['name']}'),
+                              const SizedBox(height: 4),
+                              Text(
+                                _formatDate(apt['start_time']),
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                          trailing: PopupMenuButton<String>(
+                            icon: const Icon(Icons.more_vert),
+                            onSelected: (value) {
+                              if (value == 'edit') {
+                                _navigateToAddEdit(appointment: apt);
+                              } else if (value == 'delete') {
+                                _deleteAppointment(
+                                  apt['id'],
+                                  apt['google_event_id'],
+                                );
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(
+                                value: 'edit',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.edit, color: AppColors.primary),
+                                    SizedBox(width: 8),
+                                    Text('Editar'),
                                   ],
                                 ),
-                              );
-                            },
+                              ),
+                              const PopupMenuItem(
+                                value: 'delete',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.delete, color: AppColors.error),
+                                    SizedBox(width: 8),
+                                    Text('Excluir'),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+                        ),
+                      );
+                    },
               );
             },
           );

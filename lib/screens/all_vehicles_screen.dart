@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
-import 'add_vehicle_screen.dart'; // IMPORTANTE: Importe a nova tela
+import 'package:vlinix/theme/app_colors.dart'; // <--- IMPORTANTE
+import 'add_vehicle_screen.dart';
 
 class AllVehiclesScreen extends StatefulWidget {
   const AllVehiclesScreen({super.key});
@@ -14,7 +15,7 @@ class _AllVehiclesScreenState extends State<AllVehiclesScreen> {
   final _searchController = TextEditingController();
   String _searchText = '';
 
-  // Lista de clientes necessária para a BUSCA por nome do dono
+  // Lista de clientes para a BUSCA por nome do dono
   List<Map<String, dynamic>> _clients = [];
 
   final _vehiclesStream = Supabase.instance.client
@@ -47,21 +48,49 @@ class _AllVehiclesScreenState extends State<AllVehiclesScreen> {
 
   // --- DELETE ---
   Future<void> _deleteVehicle(int id) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Excluir Veículo?'),
+        content: const Text('Essa ação não pode ser desfeita.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
     try {
       await Supabase.instance.client.from('vehicles').delete().eq('id', id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Veículo excluído com sucesso.'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Erro ao excluir veículo.'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.error,
           ),
         );
       }
     }
   }
 
-  // Navegação para a tela de Adicionar/Editar
   void _navigateToAddEdit({Map<String, dynamic>? vehicle}) {
     Navigator.push(
       context,
@@ -69,12 +98,10 @@ class _AllVehiclesScreenState extends State<AllVehiclesScreen> {
         builder: (context) => AddVehicleScreen(vehicleToEdit: vehicle),
       ),
     ).then((_) {
-      // Quando volta, recarrega os clientes caso algum nome tenha mudado (opcional, mas boa prática)
       _fetchClients();
     });
   }
 
-  // Helper para achar nome do dono pelo ID (Usado na Busca e na Lista)
   String _getOwnerName(int clientId) {
     final client = _clients.firstWhere(
       (c) => c['id'] == clientId,
@@ -88,100 +115,197 @@ class _AllVehiclesScreenState extends State<AllVehiclesScreen> {
     final lang = AppLocalizations.of(context)!;
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(lang.titleAllVehicles),
-        backgroundColor: const Color(0xFF1E88E5),
-        foregroundColor: Colors.white,
+        centerTitle: true,
+        // Theme cuida das cores
       ),
-      // --- FAB Redireciona para tela nova ---
+
       floatingActionButton: FloatingActionButton(
         onPressed: () => _navigateToAddEdit(),
-        backgroundColor: const Color(0xFF1E88E5),
+        backgroundColor: AppColors.accent, // Dourado
         foregroundColor: Colors.white,
         child: const Icon(Icons.add),
       ),
+
       body: Column(
         children: [
           // --- BARRA DE PESQUISA ---
-          Padding(
-            padding: const EdgeInsets.all(10.0),
+          Container(
+            padding: const EdgeInsets.all(16.0),
+            color: Colors.white,
             child: TextField(
               controller: _searchController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Pesquisar Veículo',
                 hintText: 'Modelo, placa ou dono...',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: AppColors.background,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: const BorderSide(
+                    color: AppColors.accent,
+                    width: 1.5,
+                  ),
+                ),
               ),
             ),
           ),
+
           // --- LISTA ---
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: _vehiclesStream,
               builder: (context, snapshot) {
-                if (!snapshot.hasData)
+                if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
+                }
 
                 final allVehicles = snapshot.data!;
 
-                // Lógica de Filtro
                 final vehicles = allVehicles.where((v) {
                   if (_searchText.isEmpty) return true;
-
                   final model = (v['model'] ?? '').toString().toLowerCase();
                   final plate = (v['plate'] ?? '').toString().toLowerCase();
                   final ownerName = _getOwnerName(v['client_id']).toLowerCase();
-
                   return model.contains(_searchText) ||
                       plate.contains(_searchText) ||
                       ownerName.contains(_searchText);
                 }).toList();
 
-                if (vehicles.isEmpty)
-                  return Center(child: Text(lang.msgNoVehicles));
+                if (vehicles.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.directions_car,
+                          size: 60,
+                          color: Colors.grey[300],
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          lang.msgNoVehicles,
+                          style: const TextStyle(color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  );
+                }
 
                 return ListView.builder(
+                  padding: const EdgeInsets.only(top: 8, bottom: 80),
                   itemCount: vehicles.length,
                   itemBuilder: (context, index) {
                     final vehicle = vehicles[index];
                     final ownerName = _getOwnerName(vehicle['client_id']);
 
-                    return ListTile(
-                      leading: const Icon(
-                        Icons.directions_car,
-                        color: Colors.blue,
+                    return Card(
+                      elevation: 0,
+                      color: Colors.white,
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
                       ),
-                      title: Text(
-                        '${vehicle['model']} - ${vehicle['plate']}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Colors.grey.shade200),
                       ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('${lang.labelColor}: ${vehicle['color']}'),
-                          Text(
-                            '${lang.labelOwner}: $ownerName',
-                            style: TextStyle(
-                              color: Colors.blue.shade700,
-                              fontSize: 12,
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.directions_car,
+                            color: AppColors.primary, // Ícone Chumbo
+                          ),
+                        ),
+                        title: Text(
+                          '${vehicle['model']} - ${vehicle['plate']}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 4),
+                            Text(
+                              '${lang.labelColor}: ${vehicle['color']}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit, color: Colors.blue),
-                            onPressed: () =>
-                                _navigateToAddEdit(vehicle: vehicle),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deleteVehicle(vehicle['id']),
-                          ),
-                        ],
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.person,
+                                  size: 12,
+                                  color: AppColors.accent,
+                                ), // Ícone Dourado
+                                const SizedBox(width: 4),
+                                Text(
+                                  ownerName.isNotEmpty ? ownerName : 'Sem dono',
+                                  style: const TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        trailing: PopupMenuButton<String>(
+                          icon: const Icon(Icons.more_vert),
+                          onSelected: (value) {
+                            if (value == 'edit') {
+                              _navigateToAddEdit(vehicle: vehicle);
+                            } else if (value == 'delete') {
+                              _deleteVehicle(vehicle['id']);
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(
+                              value: 'edit',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.edit, color: AppColors.primary),
+                                  SizedBox(width: 8),
+                                  Text('Editar'),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.delete, color: AppColors.error),
+                                  SizedBox(width: 8),
+                                  Text('Excluir'),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },

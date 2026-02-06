@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:vlinix/theme/app_colors.dart'; // Nossas cores
 import 'home_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -15,9 +16,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
-  // --- 1. Método de Validação de Email (Regex) ---
   bool _isValidEmail(String email) {
-    // Regex padrão para validar formato de e-mail (ex: texto@texto.texto)
     final emailRegex = RegExp(
       r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
     );
@@ -29,7 +28,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
-    // 1. Validação de Campos Vazios
     if (name.isEmpty || email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(
         context,
@@ -37,7 +35,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return;
     }
 
-    // 2. Validação de Formato de Email
     if (!_isValidEmail(email)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -48,7 +45,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return;
     }
 
-    // 3. Validação de Senha (Mínimo 6 caracteres - padrão Supabase)
     if (password.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -69,7 +65,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Conta criada! Bem-vindo.')),
+          const SnackBar(
+            content: Text('Conta criada! Bem-vindo.'),
+            backgroundColor: AppColors.success,
+          ),
         );
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const HomeScreen()),
@@ -79,7 +78,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     } on AuthException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message), backgroundColor: Colors.red),
+          SnackBar(content: Text(e.message), backgroundColor: AppColors.error),
         );
       }
     } catch (e) {
@@ -87,7 +86,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Erro inesperado'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.error,
           ),
         );
       }
@@ -98,23 +97,31 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Detecta se é "Tela Grande" (PC/Tablet)
     final isLargeScreen = MediaQuery.of(context).size.width > 600;
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text("Criar Conta"),
-        backgroundColor: const Color(0xFF1E88E5), // Azul padrão do app
-        foregroundColor: Colors.white,
+        title: const Text(
+          "Criar Conta",
+          style: TextStyle(
+            color: AppColors.primary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(
+          color: AppColors.primary,
+        ), // Seta de voltar Chumbo
       ),
-      backgroundColor: isLargeScreen ? Colors.grey[100] : Colors.white,
+
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Center(
             child: Container(
-              // Limita a largura no PC para 500px
               width: isLargeScreen ? 500 : double.infinity,
               padding: isLargeScreen
                   ? const EdgeInsets.all(40)
@@ -122,7 +129,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               decoration: isLargeScreen
                   ? BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.1),
@@ -130,76 +137,96 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           offset: const Offset(0, 10),
                         ),
                       ],
+                      border: Border.all(color: Colors.grey.shade200),
                     )
                   : null,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Ícone de destaque
-                  if (isLargeScreen) ...[
-                    const Icon(
-                      Icons.person_add,
-                      size: 60,
-                      color: Color(0xFF1E88E5),
+                  // --- 1. LOGO / ÍCONE NOVO ---
+                  Hero(
+                    tag: 'app_logo',
+                    child: Image.asset(
+                      'assets/images/logo_symbol.png', // Usamos o Símbolo aqui pra variar
+                      height: 80,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(
+                          Icons.person_add,
+                          size: 60,
+                          color: AppColors.primary,
+                        );
+                      },
                     ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      "Junte-se ao Vlinix",
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 30),
-                  ],
+                  ),
 
+                  const SizedBox(height: 20),
+
+                  const Text(
+                    "Junte-se ao V-LINIX",
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    "Crie sua conta em segundos",
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+
+                  const SizedBox(height: 30),
+
+                  // --- 2. INPUTS (Theme Global) ---
                   TextField(
                     controller: _nameController,
                     decoration: const InputDecoration(
                       labelText: 'Nome Completo',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.person),
+                      prefixIcon: Icon(Icons.person_outline),
                     ),
                   ),
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 16),
                   TextField(
                     controller: _emailController,
-                    keyboardType:
-                        TextInputType.emailAddress, // Teclado otimizado para @
+                    keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(
                       labelText: 'Email',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.email),
-                      hintText: 'exemplo@email.com', // Ajuda visual
+                      prefixIcon: Icon(Icons.email_outlined),
+                      hintText: 'exemplo@email.com',
                     ),
                   ),
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 16),
                   TextField(
                     controller: _passwordController,
                     obscureText: true,
                     decoration: const InputDecoration(
                       labelText: 'Senha',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.lock),
+                      prefixIcon: Icon(Icons.lock_outline),
                     ),
                   ),
+
                   const SizedBox(height: 30),
 
+                  // --- 3. BOTÃO CADASTRAR (Theme Global) ---
                   _isLoading
-                      ? const CircularProgressIndicator()
+                      ? const CircularProgressIndicator(color: AppColors.accent)
                       : SizedBox(
                           width: double.infinity,
                           height: 50,
                           child: ElevatedButton(
                             onPressed: _signUp,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1E88E5),
-                              foregroundColor: Colors.white,
-                              elevation: isLargeScreen ? 2 : 1,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
                             ),
                             child: const Text(
                               'CADASTRAR',
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1,
+                              ),
                             ),
                           ),
                         ),

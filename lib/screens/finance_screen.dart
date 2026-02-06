@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
+import 'package:vlinix/theme/app_colors.dart'; // <--- IMPORTANTE
 
 class FinanceScreen extends StatefulWidget {
   const FinanceScreen({super.key});
@@ -62,25 +63,21 @@ class _FinanceScreenState extends State<FinanceScreen> {
     ).toUtc().toIso8601String();
 
     try {
-      // 1. QUERY ATUALIZADA PARA SUPORTAR MÚLTIPLOS SERVIÇOS
-      // Buscamos 'appointment_services' para pegar preços e nomes.
+      // 1. QUERY ATUALIZADA
       var query = Supabase.instance.client
           .from('appointments')
-          .select(
-            '''
+          .select('''
             start_time, 
             payment_method, 
             clients(full_name), 
             appointment_services(price, services(name)), 
             services(name, price) 
-            ''',
-            // Mantemos 'services' antigo como fallback para dados legados
-          )
+            ''')
           .eq('status', 'concluido')
           .gte('start_time', startOfMonth)
           .lte('start_time', endOfMonth);
 
-      // 2. Aplica o filtro de pagamento
+      // 2. Aplica o filtro
       if (_selectedFilter != 'Todos') {
         query = query.eq('payment_method', _selectedFilter);
       }
@@ -95,24 +92,16 @@ class _FinanceScreenState extends State<FinanceScreen> {
         double appointmentTotal = 0.0;
         String serviceNames = '';
 
-        // LÓGICA DE CÁLCULO (HÍBRIDA: NOVO + LEGADO)
-
-        // A. Tenta pegar da nova estrutura (Lista)
+        // LÓGICA DE CÁLCULO
         if (item['appointment_services'] != null &&
             (item['appointment_services'] as List).isNotEmpty) {
           final items = item['appointment_services'] as List;
-
-          // Soma preços
           appointmentTotal = items.fold(
             0.0,
             (sum, i) => sum + (i['price'] ?? 0.0),
           );
-
-          // Concatena nomes (ex: "Lavagem, Cera")
           serviceNames = items.map((i) => i['services']['name']).join(', ');
-        }
-        // B. Fallback para estrutura antiga (Único)
-        else if (item['services'] != null) {
+        } else if (item['services'] != null) {
           final s = item['services'];
           appointmentTotal = (s['price'] is int)
               ? (s['price'] as int).toDouble()
@@ -124,7 +113,6 @@ class _FinanceScreenState extends State<FinanceScreen> {
 
         totalMonthRevenue += appointmentTotal;
 
-        // Cria um objeto limpo para a lista visual
         processedList.add({
           'start_time': item['start_time'],
           'client_name': item['clients'] != null
@@ -168,9 +156,17 @@ class _FinanceScreenState extends State<FinanceScreen> {
       case 'Dinheiro':
         return const Icon(Icons.money, size: 16, color: Colors.green);
       case 'Cartão':
-        return const Icon(Icons.credit_card, size: 16, color: Colors.blue);
+        return const Icon(
+          Icons.credit_card,
+          size: 16,
+          color: AppColors.primary,
+        );
       case 'Plano Mensal':
-        return const Icon(Icons.calendar_today, size: 16, color: Colors.purple);
+        return const Icon(
+          Icons.calendar_today,
+          size: 16,
+          color: AppColors.accent,
+        );
       default:
         return const Icon(Icons.help_outline, size: 16, color: Colors.grey);
     }
@@ -182,37 +178,55 @@ class _FinanceScreenState extends State<FinanceScreen> {
     final locale = Localizations.localeOf(context).languageCode;
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(lang.financeTitle),
-        backgroundColor: Colors.green.shade700,
-        foregroundColor: Colors.white,
+        centerTitle: true,
+        // Theme cuida das cores (Chumbo)
       ),
       body: Column(
         children: [
-          // 1. SELETOR DE MÊS
+          // 1. SELETOR DE MÊS (Estilo limpo)
           Container(
-            padding: const EdgeInsets.symmetric(vertical: 5),
-            color: Colors.green.shade50,
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            color: Colors.white,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.arrow_back_ios),
+                  icon: const Icon(
+                    Icons.chevron_left,
+                    color: AppColors.primary,
+                  ),
                   onPressed: () => _changeMonth(-1),
                 ),
-                Text(
-                  DateFormat(
-                    'MMMM yyyy',
-                    locale,
-                  ).format(_selectedDate).toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green.shade900,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    DateFormat(
+                      'MMMM yyyy',
+                      locale,
+                    ).format(_selectedDate).toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                      letterSpacing: 1,
+                    ),
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.arrow_forward_ios),
+                  icon: const Icon(
+                    Icons.chevron_right,
+                    color: AppColors.primary,
+                  ),
                   onPressed: () => _changeMonth(1),
                 ),
               ],
@@ -222,7 +236,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
           // 2. FILTROS
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
                 _buildFilterChip('Todos', lang.filterAll),
@@ -236,37 +250,45 @@ class _FinanceScreenState extends State<FinanceScreen> {
             ),
           ),
 
-          // 3. PLACAR TOTAL
+          // 3. PLACAR TOTAL ("Black Card" Premium)
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(24),
             width: double.infinity,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.green.shade700, Colors.green.shade400],
+              // Gradiente Chumbo Escuro -> Chumbo Claro
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF2C2C2C), AppColors.primary],
               ),
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
             child: Column(
               children: [
                 Text(
-                  lang.financeTotal,
-                  style: const TextStyle(color: Colors.white70, fontSize: 16),
+                  lang.financeTotal.toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontSize: 12,
+                    letterSpacing: 1.5,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 8),
                 _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
+                    ? const CircularProgressIndicator(color: AppColors.accent)
                     : Text(
                         _formatCurrency(_totalRevenue),
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: AppColors.accent, // Dourado!
                           fontSize: 36,
                           fontWeight: FontWeight.bold,
                         ),
@@ -297,59 +319,98 @@ class _FinanceScreenState extends State<FinanceScreen> {
                     ),
                   )
                 : ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     itemCount: _records.length,
-                    separatorBuilder: (_, __) => const Divider(),
+                    separatorBuilder: (_, __) => const Divider(height: 1),
                     itemBuilder: (context, index) {
                       final item = _records[index];
 
-                      return ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade100,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            _formatDate(item['start_time']),
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green.shade800,
-                            ),
-                          ),
-                        ),
-                        title: Text(
-                          item['service_name'],
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Row(
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Row(
                           children: [
-                            Text(item['client_name']),
-                            const SizedBox(width: 5),
-                            const Text(
-                              '•',
-                              style: TextStyle(color: Colors.grey),
+                            // Data Box
+                            Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.grey.shade200),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    _formatDate(
+                                      item['start_time'],
+                                    ).split('/')[0], // Dia
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                  Text(
+                                    _formatDate(
+                                      item['start_time'],
+                                    ).split('/')[1], // Mês
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            const SizedBox(width: 5),
-                            _getPaymentIcon(item['payment_method']),
-                            const SizedBox(width: 4),
+                            const SizedBox(width: 16),
+
+                            // Detalhes
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item['service_name'],
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        item['client_name'],
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      _getPaymentIcon(item['payment_method']),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // Valor
                             Text(
-                              item['payment_method'] ?? '?',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade700,
+                              _formatCurrency(item['total_price']),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: AppColors
+                                    .success, // Verde para dinheiro entrando
                               ),
                             ),
                           ],
-                        ),
-                        trailing: Text(
-                          _formatCurrency(item['total_price']),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: Colors.black87,
-                          ),
                         ),
                       );
                     },
@@ -368,12 +429,20 @@ class _FinanceScreenState extends State<FinanceScreen> {
       onSelected: (bool selected) {
         if (selected) _changeFilter(internalValue);
       },
-      selectedColor: Colors.green.shade200,
-      checkmarkColor: Colors.green.shade900,
+      // Dourado quando selecionado, Cinza claro quando não
+      selectedColor: AppColors.accent,
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: isSelected ? Colors.transparent : Colors.grey.shade300,
+        ),
+      ),
       labelStyle: TextStyle(
-        color: isSelected ? Colors.green.shade900 : Colors.black87,
+        color: isSelected ? Colors.white : Colors.grey[700],
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
       ),
+      checkmarkColor: Colors.white,
     );
   }
 }

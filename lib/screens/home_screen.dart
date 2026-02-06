@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:vlinix/main.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
+import 'package:vlinix/theme/app_colors.dart'; // <--- IMPORTANTE: Nossas cores
 
 import 'login_screen.dart';
 import 'clients_screen.dart';
@@ -13,7 +14,7 @@ import 'finance_screen.dart';
 import 'add_client_screen.dart';
 import 'add_vehicle_screen.dart';
 import 'add_appointment_screen.dart';
-import 'edit_profile_screen.dart'; // <--- IMPORTANTE: Importe a tela de edição
+import 'edit_profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -120,14 +121,14 @@ class _HomeScreenState extends State<HomeScreen> {
             content: Text(
               isCompleted ? '${lang.statusDone} ✅' : '${lang.statusPending} 🟠',
             ),
-            backgroundColor: isCompleted ? Colors.green : Colors.orange,
+            backgroundColor: isCompleted ? AppColors.success : Colors.orange,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.error),
         );
       }
     }
@@ -235,8 +236,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Busca dados atualizados do usuário diretamente do objeto _user
-    // (Ou recarrega do Supabase se necessário, mas o objeto costuma manter cache)
     final currentUser = Supabase.instance.client.auth.currentUser;
     final String displayName =
         currentUser?.userMetadata?['full_name'] ?? 'Usuário';
@@ -246,10 +245,21 @@ class _HomeScreenState extends State<HomeScreen> {
     final lang = AppLocalizations.of(context)!;
 
     return Scaffold(
+      backgroundColor: AppColors.background, // Fundo Gelo
       appBar: AppBar(
-        title: Text(lang.appTitle, style: const TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF1E88E5),
-        iconTheme: const IconThemeData(color: Colors.white),
+        centerTitle: true,
+        title: Stack(
+          alignment: Alignment.center,
+          children: [
+            const SizedBox(width: double.infinity),
+            Image.asset(
+              'assets/images/logo_symbol.png',
+              height: 36,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) => Text(lang.appTitle),
+            ),
+          ],
+        ),
         actions: [
           PopupMenuButton<String>(
             icon: const Icon(Icons.language),
@@ -267,8 +277,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+
       floatingActionButton: _buildFab(),
       drawer: _buildDrawer(displayName, email, photoUrl, lang),
+
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -279,24 +291,45 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // --- CABEÇALHO DO DASHBOARD ---
                     Padding(
                       padding: const EdgeInsets.only(bottom: 20.0),
-                      child: Text(
-                        "Olá, $displayName",
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E88E5),
-                        ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              "Olá, $displayName",
+                              style: const TextStyle(
+                                fontSize:
+                                    24, // Levemente menor para ficar elegante
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary, // Chumbo
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    Text(
-                      "${lang.agendaToday} ($_todayAppointmentsCount)",
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E88E5),
-                      ),
+
+                    // --- SEÇÃO HOJE ---
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.today,
+                          color: AppColors.accent,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          "${lang.agendaToday} ($_todayAppointmentsCount)",
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary, // Chumbo
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 10),
                     _buildAppointmentList(
@@ -304,14 +337,28 @@ class _HomeScreenState extends State<HomeScreen> {
                       isToday: true,
                       emptyMsg: lang.agendaEmptyToday,
                     ),
+
                     const SizedBox(height: 30),
-                    Text(
-                      lang.agendaUpcoming,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey,
-                      ),
+
+                    // --- SEÇÃO PRÓXIMOS ---
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.calendar_month,
+                          color: Colors.grey,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          lang.agendaUpcoming,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors
+                                .grey, // Mantemos cinza para dar hierarquia
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 10),
                     _buildAppointmentList(
@@ -319,7 +366,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       isToday: false,
                       emptyMsg: lang.agendaEmptyUpcoming,
                     ),
-                    const SizedBox(height: 50),
+                    const SizedBox(
+                      height: 80,
+                    ), // Espaço extra para o FAB não cobrir nada
                   ],
                 ),
               ),
@@ -327,6 +376,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // --- BOTÃO FLUTUANTE DOURADO (+) ---
   Widget _buildFab() {
     return PopupMenuButton<String>(
       offset: const Offset(0, -200),
@@ -336,12 +386,12 @@ class _HomeScreenState extends State<HomeScreen> {
         width: 56,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: const Color(0xFF1E88E5),
+          color: AppColors.accent, // Dourado
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 6,
-              offset: const Offset(0, 3),
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -366,7 +416,7 @@ class _HomeScreenState extends State<HomeScreen> {
           value: 'cliente',
           child: Row(
             children: [
-              Icon(Icons.person_add, color: Colors.blue),
+              Icon(Icons.person_add, color: AppColors.primary),
               SizedBox(width: 10),
               Text('Novo Cliente'),
             ],
@@ -376,7 +426,7 @@ class _HomeScreenState extends State<HomeScreen> {
           value: 'carro',
           child: Row(
             children: [
-              Icon(Icons.directions_car, color: Colors.orange),
+              Icon(Icons.directions_car, color: AppColors.primary),
               SizedBox(width: 10),
               Text('Novo Carro'),
             ],
@@ -386,7 +436,7 @@ class _HomeScreenState extends State<HomeScreen> {
           value: 'agendamento',
           child: Row(
             children: [
-              Icon(Icons.calendar_month, color: Colors.green),
+              Icon(Icons.calendar_month, color: AppColors.accent),
               SizedBox(width: 10),
               Text('Novo Agendamento'),
             ],
@@ -396,7 +446,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- DRAWER COM O BOTÃO DE EDITAR PERFIL ---
+  // --- DRAWER (MENU LATERAL) ---
   Widget _buildDrawer(
     String name,
     String email,
@@ -408,33 +458,32 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: EdgeInsets.zero,
         children: [
           UserAccountsDrawerHeader(
-            decoration: const BoxDecoration(color: Color(0xFF1E88E5)),
+            // Topo do menu em Chumbo
+            decoration: const BoxDecoration(color: AppColors.primary),
             accountName: Text(
               name,
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             ),
             accountEmail: Text(email),
             currentAccountPicture: CircleAvatar(
+              backgroundColor: Colors.white,
               backgroundImage: photo != null ? NetworkImage(photo) : null,
-              child: photo == null ? const Icon(Icons.person) : null,
+              child: photo == null
+                  ? const Icon(Icons.person, color: AppColors.primary)
+                  : null,
             ),
-            // --- AQUI ESTÁ O BOTÃO DO LÁPIS ---
             otherAccountsPictures: [
               IconButton(
                 icon: const Icon(Icons.edit, color: Colors.white),
-                tooltip: lang.tooltipEditProfile, // Usa a tradução
+                tooltip: lang.tooltipEditProfile,
                 onPressed: () async {
-                  Navigator.pop(context); // Fecha o drawer
-
-                  // Abre a tela de editar e espera o retorno
+                  Navigator.pop(context);
                   final bool? updated = await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => const EditProfileScreen(),
                     ),
                   );
-
-                  // Se retornou true, recarrega a tela para mostrar nome/foto novos
                   if (updated == true) {
                     setState(() {});
                   }
@@ -443,22 +492,25 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
           ListTile(
-            leading: const Icon(Icons.dashboard, color: Color(0xFF1E88E5)),
+            leading: const Icon(Icons.dashboard, color: AppColors.primary),
             title: Text(
               lang.menuOverview,
               style: const TextStyle(
-                color: Color(0xFF1E88E5),
+                color: AppColors.primary,
                 fontWeight: FontWeight.bold,
               ),
             ),
             onTap: () => Navigator.pop(context),
           ),
           ListTile(
-            leading: const Icon(Icons.monetization_on, color: Colors.green),
+            leading: const Icon(
+              Icons.monetization_on,
+              color: AppColors.primary,
+            ),
             title: Text(
               lang.menuFinance,
               style: const TextStyle(
-                color: Colors.green,
+                color: AppColors.primary,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -472,7 +524,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.calendar_today),
+            leading: const Icon(
+              Icons.calendar_today,
+              color: AppColors.textSecondary,
+            ),
             title: Text(lang.menuAgenda),
             onTap: () {
               Navigator.pop(context);
@@ -483,7 +538,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.people),
+            leading: const Icon(Icons.people, color: AppColors.textSecondary),
             title: Text(lang.menuClients),
             onTap: () {
               Navigator.pop(context);
@@ -494,7 +549,10 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.directions_car),
+            leading: const Icon(
+              Icons.directions_car,
+              color: AppColors.textSecondary,
+            ),
             title: Text(lang.menuVehicles),
             onTap: () {
               Navigator.pop(context);
@@ -505,7 +563,10 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.price_change),
+            leading: const Icon(
+              Icons.price_change,
+              color: AppColors.textSecondary,
+            ),
             title: Text(lang.menuServices),
             onTap: () {
               Navigator.pop(context);
@@ -517,10 +578,13 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.exit_to_app, color: Colors.red),
+            leading: const Icon(
+              Icons.exit_to_app,
+              color: AppColors.textSecondary,
+            ),
             title: Text(
               lang.menuLogout,
-              style: const TextStyle(color: Colors.red),
+              style: const TextStyle(color: AppColors.textSecondary),
             ),
             onTap: _signOut,
           ),
@@ -529,6 +593,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // --- CARDS DE AGENDAMENTO ---
   Widget _buildAppointmentList(
     List<Map<String, dynamic>> list, {
     required bool isToday,
@@ -539,15 +604,16 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.all(20),
         width: double.infinity,
         decoration: BoxDecoration(
-          color: Colors.grey.shade100,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.grey.shade200),
         ),
         child: Column(
           children: [
             Icon(
               isToday ? Icons.check_circle_outline : Icons.event_busy,
               size: 40,
-              color: Colors.grey,
+              color: Colors.grey.shade300,
             ),
             const SizedBox(height: 10),
             Text(emptyMsg, style: const TextStyle(color: Colors.grey)),
@@ -565,13 +631,26 @@ class _HomeScreenState extends State<HomeScreen> {
         final data = _processAppointmentData(apt);
 
         return Card(
-          elevation: 2,
-          margin: const EdgeInsets.only(bottom: 10),
+          elevation: 0, // Flat design é mais moderno
+          color: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.grey.shade200), // Borda sutil
+          ),
+          margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 8,
+            ),
+            // Caixa de Horário
             leading: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: isToday ? Colors.blue.shade50 : Colors.grey.shade200,
+                // Se for hoje, fundo dourado bem clarinho. Se não, cinza.
+                color: isToday
+                    ? AppColors.accent.withOpacity(0.15)
+                    : Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
@@ -582,7 +661,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     _formatTime(apt['start_time']),
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: isToday ? Colors.blue.shade800 : Colors.black87,
+                      // Se for hoje, cor Chumbo. Se não, cinza.
+                      color: isToday ? AppColors.primary : Colors.grey[700],
                     ),
                   ),
                   if (!isToday)
@@ -590,40 +670,61 @@ class _HomeScreenState extends State<HomeScreen> {
                       DateFormat(
                         'dd/MM',
                       ).format(DateTime.parse(apt['start_time']).toLocal()),
-                      style: const TextStyle(fontSize: 10),
+                      style: const TextStyle(fontSize: 10, color: Colors.grey),
                     ),
                 ],
               ),
             ),
             title: Text(
               data['clientName'],
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("${data['vehicleInfo']}"),
-                const SizedBox(height: 2),
-                Text(
-                  "Serviços: ${data['serviceNames']}",
-                  style: TextStyle(color: Colors.grey[700]),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.directions_car,
+                      size: 14,
+                      color: Colors.grey[600],
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      "${data['vehicleInfo']}",
+                      style: TextStyle(color: Colors.grey[800]),
+                    ),
+                  ],
                 ),
-                if (data['totalPrice'] > 0)
+                if (data['serviceNames'].toString().isNotEmpty)
                   Text(
-                    "R\$ ${data['totalPrice'].toStringAsFixed(2)}",
-                    style: const TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
+                    "${data['serviceNames']}",
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                if (data['totalPrice'] > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      "R\$ ${data['totalPrice'].toStringAsFixed(2)}",
+                      style: const TextStyle(
+                        color: AppColors.success,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
               ],
             ),
             trailing: IconButton(
               icon: Icon(
-                data['isCompleted'] ? Icons.check_circle : Icons.pending,
-                color: data['isCompleted'] ? Colors.green : Colors.orange,
-                size: 30,
+                data['isCompleted']
+                    ? Icons.check_circle
+                    : Icons.pending_outlined,
+                color: data['isCompleted'] ? AppColors.success : Colors.orange,
+                size: 28,
               ),
               tooltip: data['isCompleted'] ? 'Reabrir' : 'Concluir',
               onPressed: () {
@@ -637,7 +738,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx),
-                          child: Text(lang.btnCancel),
+                          child: Text(
+                            lang.btnCancel,
+                            style: const TextStyle(color: Colors.grey),
+                          ),
                         ),
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(

@@ -1,8 +1,8 @@
-import 'package:flutter/foundation.dart'; // Para Uint8List (Web/Mobile)
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
-// import 'package:vlinix/l10n/app_localizations.dart';
+import 'package:vlinix/theme/app_colors.dart'; // <--- IMPORTANTE
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -19,7 +19,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   String? _avatarUrl; // URL da foto ANTIGA (no banco)
 
   // VARIAVEIS DE "STANDBY"
-  // Só existem na memória enquanto a tela está aberta.
   XFile? _imageFile;
   Uint8List? _imageBytes;
 
@@ -40,7 +39,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   // 1. ESCOLHER FOTO (MODO STANDBY)
-  // Aqui a gente NÃO mexe no banco. Só mostra o preview.
   Future<void> _pickImage() async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
@@ -55,7 +53,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
         setState(() {
           _imageFile = pickedFile;
-          _imageBytes = bytes; // Foto carregada na memória (Standby)
+          _imageBytes = bytes;
         });
       }
     } catch (e) {
@@ -64,7 +62,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   // 2. CONFIRMAR (SALVAR E TROCAR)
-  // Só agora mexemos no banco.
   Future<void> _saveProfile() async {
     setState(() => _isLoading = true);
     final supabase = Supabase.instance.client;
@@ -82,7 +79,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             'avatar_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
         final fullPath = '${user.id}/$newFileName';
 
-        // A. UPLOAD DA NOVA (Segurança: Primeiro garantimos que a nova subiu)
+        // A. UPLOAD DA NOVA
         await supabase.storage
             .from('avatars')
             .uploadBinary(
@@ -100,14 +97,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             .getPublicUrl(fullPath);
         newAvatarUrl = '$publicUrl?v=${DateTime.now().millisecondsSinceEpoch}';
 
-        // C. FAXINA (Agora que a nova está salva, apagamos as velhas)
-        // Isso roda em segundo plano para garantir que o banco fique limpo
+        // C. FAXINA (Apaga antigas)
         try {
           final list = await supabase.storage
               .from('avatars')
               .list(path: user.id);
 
-          // Filtra para apagar tudo que NÃO SEJA a foto nova que acabamos de subir
           final itemsToDelete = list
               .where((file) => file.name != newFileName)
               .map((file) => '${user.id}/${file.name}')
@@ -115,9 +110,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
           if (itemsToDelete.isNotEmpty) {
             await supabase.storage.from('avatars').remove(itemsToDelete);
-            debugPrint(
-              'Faxina: ${itemsToDelete.length} fotos antigas apagadas.',
-            );
           }
         } catch (e) {
           debugPrint('Erro não crítico na limpeza: $e');
@@ -138,7 +130,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Perfil atualizado com sucesso! ✅'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.success,
           ),
         );
         Navigator.pop(context, true);
@@ -147,7 +139,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       debugPrint("Erro detalhado: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.error),
         );
       }
     } finally {
@@ -162,12 +154,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Editar Perfil'),
-        backgroundColor: const Color(0xFF1E88E5),
-        foregroundColor: Colors.white,
-        elevation: 0,
+        centerTitle: true,
+        // Theme cuida das cores (Chumbo)
       ),
-      backgroundColor: isLargeScreen ? Colors.grey[100] : Colors.white,
-
+      backgroundColor: AppColors.background,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -199,7 +189,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E88E5),
+                        color: AppColors.primary,
                       ),
                     ),
                     const SizedBox(height: 30),
@@ -214,16 +204,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: const Color(0xFF1E88E5),
+                              color: AppColors.accent, // Borda Dourada!
                               width: 3,
                             ),
                           ),
                           child: CircleAvatar(
                             radius: 60,
                             backgroundColor: Colors.grey.shade200,
-                            // LÓGICA DO STANDBY (PRIORIDADE):
-                            // 1. Se tem _imageBytes (Standby), mostra ele.
-                            // 2. Se não, mostra a URL do banco.
                             backgroundImage: _imageBytes != null
                                 ? MemoryImage(_imageBytes!) as ImageProvider
                                 : (_avatarUrl != null && _avatarUrl!.isNotEmpty
@@ -246,7 +233,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           child: Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF1E88E5),
+                              color: AppColors.accent, // Fundo Dourado
                               shape: BoxShape.circle,
                               border: Border.all(color: Colors.white, width: 2),
                             ),
@@ -268,32 +255,37 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
                   const SizedBox(height: 32),
 
+                  // Campo Nome
                   TextField(
                     controller: _nameController,
                     decoration: const InputDecoration(
                       labelText: 'Nome de Exibição',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.badge),
+                      prefixIcon: Icon(Icons.badge_outlined),
+                      // Theme cuida das bordas
                     ),
                   ),
 
                   const SizedBox(height: 32),
 
+                  // Botão Salvar
                   SizedBox(
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _saveProfile,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1E88E5),
-                        foregroundColor: Colors.white,
-                        elevation: isLargeScreen ? 2 : 1,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
                       ),
                       child: _isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text(
                               'SALVAR ALTERAÇÕES',
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1,
+                              ),
                             ),
                     ),
                   ),

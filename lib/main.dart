@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-// SUA REGRA DE IMPORT MANTIDA:
-import 'package:vlinix/l10n/app_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:vlinix/l10n/app_localizations.dart';
 import 'screens/login_screen.dart';
+import 'package:vlinix/theme/app_colors.dart'; // Importante: Nosso arquivo de cores
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,11 +46,73 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       title: 'Vlinix',
       debugShowCheckedModeBanner: false,
+
+      // --- AQUI ESTÁ A MUDANÇA VISUAL (CSS GLOBAL) ---
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1E88E5)),
         useMaterial3: true,
+
+        // 1. Cores Principais
+        primaryColor: AppColors.primary,
+        scaffoldBackgroundColor: AppColors.background, // Fundo gelo padrão
+        // 2. Esquema de Cores do Material 3
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.primary,
+          primary: AppColors.primary,
+          secondary: AppColors.accent,
+          surface: Colors.white,
+        ),
+
+        // 3. Estilo da AppBar (Topo)
+        appBarTheme: const AppBarTheme(
+          backgroundColor: AppColors.primary, // Chumbo
+          foregroundColor: Colors.white, // Texto/Ícones brancos
+          elevation: 0,
+          centerTitle: true,
+        ),
+
+        // 4. Botões Flutuantes (FAB) - O botão "+"
+        floatingActionButtonTheme: const FloatingActionButtonThemeData(
+          backgroundColor: AppColors.accent, // Dourado
+          foregroundColor: Colors.white,
+        ),
+
+        // 5. Botões Elevados (ElevatedButton) - Ex: "Salvar", "Entrar"
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary, // Chumbo
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+
+        // 6. Estilo dos Inputs (Caixas de Texto) - A Borda Dourada!
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Colors.grey),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(
+              color: AppColors.accent,
+              width: 2,
+            ), // Borda Dourada ao focar!
+          ),
+          labelStyle: const TextStyle(color: AppColors.textSecondary),
+          prefixIconColor: AppColors.primary, // Ícones internos na cor chumbo
+        ),
       ),
-      // --- A MÁGICA DA TROCA ACONTECE AQUI ---
+
+      // ------------------------------------------------
       locale: _locale,
 
       localizationsDelegates: const [

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
+import 'package:vlinix/theme/app_colors.dart'; // <--- IMPORTANTE
 
 class AddVehicleScreen extends StatefulWidget {
   final Map<String, dynamic>? vehicleToEdit;
@@ -83,7 +84,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Veículo salvo com sucesso!'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.success,
           ),
         );
         Navigator.pop(context);
@@ -93,7 +94,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erro ao salvar: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.error,
           ),
         );
       }
@@ -106,20 +107,15 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   Widget build(BuildContext context) {
     final lang = AppLocalizations.of(context)!;
     final isEditing = widget.vehicleToEdit != null;
-
-    // 1. Detecta tela grande
     final isLargeScreen = MediaQuery.of(context).size.width > 600;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditing ? lang.titleEditVehicle : 'Novo Veículo'),
-        backgroundColor: const Color(0xFF1E88E5),
-        foregroundColor: Colors.white,
-        elevation: 0,
+        centerTitle: true,
+        // Theme cuida das cores
       ),
-      // 2. Fundo condicional
-      backgroundColor: isLargeScreen ? Colors.grey[100] : Colors.white,
-
+      backgroundColor: AppColors.background,
       body: _clients.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : Center(
@@ -127,7 +123,6 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                 padding: const EdgeInsets.all(16.0),
                 child: Center(
                   child: Container(
-                    // 3. Cartão responsivo
                     width: isLargeScreen ? 500 : double.infinity,
                     padding: isLargeScreen
                         ? const EdgeInsets.all(32)
@@ -148,12 +143,22 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        if (isLargeScreen) ...[
+                          const Icon(
+                            Icons.directions_car_filled,
+                            size: 60,
+                            color: AppColors.primary,
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+
+                        // Dropdown Cliente
                         DropdownButtonFormField<int>(
                           value: _selectedClientId,
                           decoration: InputDecoration(
                             labelText: lang.labelClient,
-                            border: const OutlineInputBorder(),
                             prefixIcon: const Icon(Icons.person),
+                            // Theme cuida das bordas
                           ),
                           items: _clients.map((c) {
                             return DropdownMenuItem(
@@ -165,42 +170,48 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                               setState(() => _selectedClientId = val),
                         ),
                         const SizedBox(height: 16),
+
+                        // Modelo
                         TextField(
                           controller: _modelController,
                           decoration: InputDecoration(
                             labelText: lang.labelModel,
-                            border: const OutlineInputBorder(),
                             prefixIcon: const Icon(Icons.directions_car),
                           ),
                         ),
                         const SizedBox(height: 16),
+
+                        // Placa
                         TextField(
                           controller: _plateController,
                           decoration: InputDecoration(
                             labelText: lang.labelPlate,
-                            border: const OutlineInputBorder(),
                             prefixIcon: const Icon(Icons.pin),
                           ),
                         ),
                         const SizedBox(height: 16),
+
+                        // Cor
                         TextField(
                           controller: _colorController,
                           decoration: InputDecoration(
                             labelText: lang.labelColor,
-                            border: const OutlineInputBorder(),
                             prefixIcon: const Icon(Icons.color_lens),
                           ),
                         ),
+
                         const SizedBox(height: 32),
+
+                        // Botão Salvar
                         SizedBox(
                           width: double.infinity,
                           height: 50,
                           child: ElevatedButton(
                             onPressed: _isLoading ? null : _save,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1E88E5),
-                              foregroundColor: Colors.white,
-                              elevation: isLargeScreen ? 2 : 1,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
                             ),
                             child: _isLoading
                                 ? const CircularProgressIndicator(
@@ -210,6 +221,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                                     lang.btnSave.toUpperCase(),
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
+                                      letterSpacing: 1,
                                     ),
                                   ),
                           ),

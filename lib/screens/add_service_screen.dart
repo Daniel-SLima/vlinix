@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
+import 'package:vlinix/theme/app_colors.dart'; // <--- IMPORTANTE
 
 class AddServiceScreen extends StatefulWidget {
   final Map<String, dynamic>? serviceToEdit;
@@ -70,7 +71,7 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Serviço salvo com sucesso!'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.success,
           ),
         );
         Navigator.pop(context); // Volta para a lista
@@ -80,7 +81,7 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erro ao salvar: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.error,
           ),
         );
       }
@@ -93,26 +94,20 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
   Widget build(BuildContext context) {
     final lang = AppLocalizations.of(context)!;
     final isEditing = widget.serviceToEdit != null;
-
-    // 1. Detecta tela grande (PC/Tablet)
     final isLargeScreen = MediaQuery.of(context).size.width > 600;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditing ? 'Editar Serviço' : lang.btnNew),
-        backgroundColor: const Color(0xFF1E88E5),
-        foregroundColor: Colors.white,
-        elevation: 0,
+        centerTitle: true,
+        // Theme cuida das cores
       ),
-      // 2. Fundo cinza no PC, branco no celular
-      backgroundColor: isLargeScreen ? Colors.grey[100] : Colors.white,
-
+      backgroundColor: AppColors.background,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
           child: Center(
             child: Container(
-              // 3. Largura máxima e decoração de cartão apenas no PC
               width: isLargeScreen ? 500 : double.infinity,
               padding: isLargeScreen
                   ? const EdgeInsets.all(32)
@@ -131,18 +126,29 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
                     )
                   : null,
               child: Column(
-                mainAxisSize:
-                    MainAxisSize.min, // Importante para o cartão não esticar
+                mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (isLargeScreen) ...[
+                    const Icon(
+                      Icons.local_offer,
+                      size: 60,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+
+                  // Campo Nome
                   TextField(
                     controller: _nameController,
                     decoration: InputDecoration(
                       labelText: lang.labelService,
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.build),
+                      prefixIcon: const Icon(Icons.build_circle_outlined),
+                      // Theme cuida das bordas
                     ),
                   ),
                   const SizedBox(height: 16),
+
+                  // Campo Preço
                   TextField(
                     controller: _priceController,
                     keyboardType: const TextInputType.numberWithOptions(
@@ -150,20 +156,22 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
                     ),
                     decoration: const InputDecoration(
                       labelText: 'Preço (R\$)',
-                      border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.attach_money),
                     ),
                   ),
+
                   const SizedBox(height: 32),
+
+                  // Botão Salvar
                   SizedBox(
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _save,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1E88E5),
-                        foregroundColor: Colors.white,
-                        elevation: isLargeScreen ? 2 : 1,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
                       ),
                       child: _isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
@@ -171,6 +179,7 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
                               lang.btnSave.toUpperCase(),
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
+                                letterSpacing: 1,
                               ),
                             ),
                     ),
