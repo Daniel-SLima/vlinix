@@ -23,8 +23,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final User? _user = Supabase.instance.client.auth.currentUser;
-
   int _todayAppointmentsCount = 0;
   List<Map<String, dynamic>> _todayAppointments = [];
   List<Map<String, dynamic>> _upcomingAppointments = [];

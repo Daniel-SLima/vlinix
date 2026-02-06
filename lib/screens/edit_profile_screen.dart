@@ -71,14 +71,38 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       String? newAvatarUrl = _avatarUrl;
 
-      // --- 1. UPLOAD DA NOVA IMAGEM (Versão Compatível com Web) ---
+      // Se o usuário escolheu uma imagem nova...
       if (_imageFile != null && _imageBytes != null) {
+        // --- 1. FAXINA: Apaga TUDO que estiver na pasta deste usuário ---
+        try {
+          // Lista os arquivos na pasta do usuário
+          final list = await supabase.storage
+              .from('avatars')
+              .list(path: user.id);
+
+          if (list.isNotEmpty) {
+            // Cria a lista de caminhos para apagar (ex: "user_id/foto_velha.jpg")
+            final itemsToDelete = list
+                .map((file) => '${user.id}/${file.name}')
+                .toList();
+
+            // Manda o Supabase apagar
+            await supabase.storage.from('avatars').remove(itemsToDelete);
+            debugPrint(
+              'Faxina concluída: ${itemsToDelete.length} arquivos apagados.',
+            );
+          }
+        } catch (e) {
+          debugPrint('Erro na limpeza (não crítico): $e');
+        }
+        // -------------------------------------------------------------
+
+        // --- 2. UPLOAD DA NOVA FOTO ---
         final fileExt = _imageFile!.name.split('.').last;
         final newFileName =
             'avatar_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
         final fullPath = '${user.id}/$newFileName';
 
-        // MUDANÇA 3: uploadBinary funciona em qualquer lugar (Web/Mobile/PC)
         await supabase.storage
             .from('avatars')
             .uploadBinary(
@@ -86,8 +110,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               _imageBytes!,
               fileOptions: FileOptions(
                 upsert: true,
-                contentType:
-                    'image/$fileExt', // Importante para o navegador abrir a foto
+                contentType: 'image/$fileExt',
               ),
             );
 
@@ -95,27 +118,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         final publicUrl = supabase.storage
             .from('avatars')
             .getPublicUrl(fullPath);
+        // Adiciona timestamp para atualizar o cache do app imediatamente
         newAvatarUrl = '$publicUrl?v=${DateTime.now().millisecondsSinceEpoch}';
-
-        // --- 2. LIMPEZA SEGURA ---
-        try {
-          final list = await supabase.storage
-              .from('avatars')
-              .list(path: user.id);
-
-          if (list.isNotEmpty) {
-            final itemsToDelete = list
-                .where((file) => file.name != newFileName)
-                .map((file) => '${user.id}/${file.name}')
-                .toList();
-
-            if (itemsToDelete.isNotEmpty) {
-              await supabase.storage.from('avatars').remove(itemsToDelete);
-            }
-          }
-        } catch (e) {
-          debugPrint('Erro não crítico na limpeza: $e');
-        }
       }
 
       // --- 3. ATUALIZA O PERFIL ---
