@@ -1,8 +1,8 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart'; // Para Uint8List
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
-// import 'package:vlinix/l10n/app_localizations.dart'; // Descomente quando tiver traduções
+// import 'package:vlinix/l10n/app_localizations.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -17,7 +17,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   bool _isLoading = false;
   String? _avatarUrl;
-  File? _imageFile;
+
+  // MUDANÇA 1: Usamos XFile (Cross-Platform) e Bytes para a imagem
+  XFile? _imageFile;
+  Uint8List? _imageBytes; // Para mostrar o preview na Web/Mobile
 
   @override
   void initState() {
@@ -41,12 +44,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         source: ImageSource.gallery,
         maxWidth: 600,
         maxHeight: 600,
-        imageQuality: 80, // Otimização extra
+        imageQuality: 80,
       );
 
       if (pickedFile != null) {
+        // MUDANÇA 2: Lemos os bytes imediatamente para funcionar na Web
+        final bytes = await pickedFile.readAsBytes();
+
         setState(() {
-          _imageFile = File(pickedFile.path);
+          _imageFile = pickedFile;
+          _imageBytes = bytes;
         });
       }
     } catch (e) {
@@ -64,38 +71,39 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       String? newAvatarUrl = _avatarUrl;
 
-      // --- 1. UPLOAD DA NOVA IMAGEM (Prioridade) ---
-      if (_imageFile != null) {
-        final fileExt = _imageFile!.path.split('.').last;
-        // Nome único para a nova foto
+      // --- 1. UPLOAD DA NOVA IMAGEM (Versão Compatível com Web) ---
+      if (_imageFile != null && _imageBytes != null) {
+        final fileExt = _imageFile!.name.split('.').last;
         final newFileName =
             'avatar_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
         final fullPath = '${user.id}/$newFileName';
 
-        // Faz o upload
+        // MUDANÇA 3: uploadBinary funciona em qualquer lugar (Web/Mobile/PC)
         await supabase.storage
             .from('avatars')
-            .upload(
+            .uploadBinary(
               fullPath,
-              _imageFile!,
-              fileOptions: const FileOptions(upsert: true),
+              _imageBytes!,
+              fileOptions: FileOptions(
+                upsert: true,
+                contentType:
+                    'image/$fileExt', // Importante para o navegador abrir a foto
+              ),
             );
 
         // Gera o link público
         final publicUrl = supabase.storage
             .from('avatars')
             .getPublicUrl(fullPath);
-        // Adiciona timestamp para forçar atualização de cache no app
         newAvatarUrl = '$publicUrl?v=${DateTime.now().millisecondsSinceEpoch}';
 
-        // --- 2. LIMPEZA SEGURA (Apaga as velhas DEPOIS de subir a nova) ---
+        // --- 2. LIMPEZA SEGURA ---
         try {
           final list = await supabase.storage
               .from('avatars')
               .list(path: user.id);
 
           if (list.isNotEmpty) {
-            // Filtra para apagar tudo que NÃO SEJA a foto que acabamos de subir
             final itemsToDelete = list
                 .where((file) => file.name != newFileName)
                 .map((file) => '${user.id}/${file.name}')
@@ -130,6 +138,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         Navigator.pop(context, true);
       }
     } catch (e) {
+      debugPrint("Erro detalhado: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
@@ -142,7 +151,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Detecta tela grande (PC/Tablet) para aplicar o visual "Card"
     final isLargeScreen = MediaQuery.of(context).size.width > 600;
 
     return Scaffold(
@@ -152,7 +160,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      // Fundo responsivo (Cinza no PC, Branco no Mobile)
       backgroundColor: isLargeScreen ? Colors.grey[100] : Colors.white,
 
       body: Center(
@@ -160,7 +167,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           padding: const EdgeInsets.all(24),
           child: Center(
             child: Container(
-              // Largura fixa e estilo de Card no PC
               width: isLargeScreen ? 500 : double.infinity,
               padding: isLargeScreen
                   ? const EdgeInsets.all(40)
@@ -181,7 +187,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // --- TÍTULO (Só no PC) ---
                   if (isLargeScreen) ...[
                     const Text(
                       "Suas Informações",
@@ -194,7 +199,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     const SizedBox(height: 30),
                   ],
 
-                  // --- ÁREA DA FOTO ---
+                  // --- ÁREA DA FOTO (MUDANÇA 4: MemoryImage para Web) ---
                   GestureDetector(
                     onTap: _pickImage,
                     child: Stack(
@@ -210,13 +215,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           child: CircleAvatar(
                             radius: 60,
                             backgroundColor: Colors.grey.shade200,
-                            backgroundImage: _imageFile != null
-                                ? FileImage(_imageFile!) as ImageProvider
+                            // LÓGICA DE EXIBIÇÃO:
+                            // 1. Tem bytes novos? Mostra MemoryImage.
+                            // 2. Não tem bytes mas tem URL? Mostra NetworkImage.
+                            // 3. Não tem nada? Mostra Ícone.
+                            backgroundImage: _imageBytes != null
+                                ? MemoryImage(_imageBytes!) as ImageProvider
                                 : (_avatarUrl != null && _avatarUrl!.isNotEmpty
                                       ? NetworkImage(_avatarUrl!)
                                       : null),
                             child:
-                                (_imageFile == null &&
+                                (_imageBytes == null &&
                                     (_avatarUrl == null || _avatarUrl!.isEmpty))
                                 ? const Icon(
                                     Icons.person,
@@ -254,7 +263,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
                   const SizedBox(height: 32),
 
-                  // --- CAMPO NOME ---
                   TextField(
                     controller: _nameController,
                     decoration: const InputDecoration(
@@ -266,7 +274,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
                   const SizedBox(height: 32),
 
-                  // --- BOTÃO SALVAR ---
                   SizedBox(
                     width: double.infinity,
                     height: 50,
