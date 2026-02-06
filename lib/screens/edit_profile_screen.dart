@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:vlinix/l10n/app_localizations.dart';
+// import 'package:vlinix/l10n/app_localizations.dart'; // Descomente quando tiver traduções
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -17,7 +17,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   bool _isLoading = false;
   String? _avatarUrl;
-  File? _imageFile; // Para preview local antes de salvar
+  File? _imageFile;
 
   @override
   void initState() {
@@ -35,13 +35,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
-  // 1. Escolher Imagem da Galeria
   Future<void> _pickImage() async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 600, // Reduz tamanho para economizar dados
+        maxWidth: 600,
         maxHeight: 600,
+        imageQuality: 80, // Otimização extra
       );
 
       if (pickedFile != null) {
@@ -54,7 +54,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
-  // 2. Salvar Tudo (Upload + Update Profile)
   Future<void> _saveProfile() async {
     setState(() => _isLoading = true);
     final supabase = Supabase.instance.client;
@@ -63,53 +62,55 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       if (user == null) throw 'Usuário não logado';
 
-      String? newAvatarUrl = _avatarUrl; // Começa com a URL atual
+      String? newAvatarUrl = _avatarUrl;
 
-      // A. Se o usuário escolheu uma imagem nova na galeria
+      // --- 1. UPLOAD DA NOVA IMAGEM (Prioridade) ---
       if (_imageFile != null) {
-        // --- PASSO EXTRA: LIMPEZA (Evita acumular fotos velhas) ---
-        try {
-          // 1. Lista todos os arquivos na pasta deste usuário
-          final list = await supabase.storage
-              .from('avatars')
-              .list(path: user.id);
-
-          // 2. Se tiver algo lá, apaga tudo antes de subir a nova
-          if (list.isNotEmpty) {
-            final itemsToDelete = list
-                .map((file) => '${user.id}/${file.name}')
-                .toList();
-            await supabase.storage.from('avatars').remove(itemsToDelete);
-          }
-        } catch (e) {
-          // Se der erro ao limpar, apenas ignora e segue o baile (não trava o upload)
-          debugPrint('Erro ao limpar fotos antigas: $e');
-        }
-        // -----------------------------------------------------------
-
         final fileExt = _imageFile!.path.split('.').last;
-        final fileName =
-            '${user.id}/avatar_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+        // Nome único para a nova foto
+        final newFileName =
+            'avatar_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+        final fullPath = '${user.id}/$newFileName';
 
-        // Faz o upload da nova
+        // Faz o upload
         await supabase.storage
             .from('avatars')
             .upload(
-              fileName,
+              fullPath,
               _imageFile!,
               fileOptions: const FileOptions(upsert: true),
             );
 
         // Gera o link público
-        newAvatarUrl = supabase.storage.from('avatars').getPublicUrl(fileName);
+        final publicUrl = supabase.storage
+            .from('avatars')
+            .getPublicUrl(fullPath);
+        // Adiciona timestamp para forçar atualização de cache no app
+        newAvatarUrl = '$publicUrl?v=${DateTime.now().millisecondsSinceEpoch}';
 
-        // Truque para "quebrar o cache" e forçar o app a baixar a foto nova imediatamente
-        // Adicionamos um número aleatório no final da URL
-        newAvatarUrl =
-            '$newAvatarUrl?v=${DateTime.now().millisecondsSinceEpoch}';
+        // --- 2. LIMPEZA SEGURA (Apaga as velhas DEPOIS de subir a nova) ---
+        try {
+          final list = await supabase.storage
+              .from('avatars')
+              .list(path: user.id);
+
+          if (list.isNotEmpty) {
+            // Filtra para apagar tudo que NÃO SEJA a foto que acabamos de subir
+            final itemsToDelete = list
+                .where((file) => file.name != newFileName)
+                .map((file) => '${user.id}/${file.name}')
+                .toList();
+
+            if (itemsToDelete.isNotEmpty) {
+              await supabase.storage.from('avatars').remove(itemsToDelete);
+            }
+          }
+        } catch (e) {
+          debugPrint('Erro não crítico na limpeza: $e');
+        }
       }
 
-      // B. Atualiza os dados do usuário (Auth)
+      // --- 3. ATUALIZA O PERFIL ---
       await supabase.auth.updateUser(
         UserAttributes(
           data: {
@@ -121,9 +122,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Perfil atualizado com sucesso! ✅')),
+          const SnackBar(
+            content: Text('Perfil atualizado com sucesso! ✅'),
+            backgroundColor: Colors.green,
+          ),
         );
-        Navigator.pop(context, true); // Volta para a Home avisando que mudou
+        Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
@@ -138,99 +142,152 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Traduções (se houver) ou texto fixo para MVP
-    // final lang = AppLocalizations.of(context)!;
+    // Detecta tela grande (PC/Tablet) para aplicar o visual "Card"
+    final isLargeScreen = MediaQuery.of(context).size.width > 600;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Editar Perfil'),
         backgroundColor: const Color(0xFF1E88E5),
         foregroundColor: Colors.white,
+        elevation: 0,
       ),
+      // Fundo responsivo (Cinza no PC, Branco no Mobile)
+      backgroundColor: isLargeScreen ? Colors.grey[100] : Colors.white,
+
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
-          child: Column(
-            children: [
-              // --- ÁREA DA FOTO ---
-              GestureDetector(
-                onTap: _pickImage,
-                child: Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 60,
-                      backgroundColor: Colors.grey.shade200,
-                      backgroundImage: _imageFile != null
-                          ? FileImage(_imageFile!) as ImageProvider
-                          : (_avatarUrl != null
-                                ? NetworkImage(_avatarUrl!)
-                                : null),
-                      child: (_imageFile == null && _avatarUrl == null)
-                          ? const Icon(
-                              Icons.person,
-                              size: 60,
-                              color: Colors.grey,
-                            )
-                          : null,
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF1E88E5),
-                          shape: BoxShape.circle,
+          child: Center(
+            child: Container(
+              // Largura fixa e estilo de Card no PC
+              width: isLargeScreen ? 500 : double.infinity,
+              padding: isLargeScreen
+                  ? const EdgeInsets.all(40)
+                  : EdgeInsets.zero,
+              decoration: isLargeScreen
+                  ? BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
                         ),
-                        child: const Icon(
-                          Icons.camera_alt,
-                          color: Colors.white,
-                          size: 20,
-                        ),
+                      ],
+                    )
+                  : null,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // --- TÍTULO (Só no PC) ---
+                  if (isLargeScreen) ...[
+                    const Text(
+                      "Suas Informações",
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E88E5),
                       ),
                     ),
+                    const SizedBox(height: 30),
                   ],
-                ),
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                'Toque na foto para alterar',
-                style: TextStyle(color: Colors.grey, fontSize: 12),
-              ),
 
-              const SizedBox(height: 32),
-
-              // --- CAMPO NOME ---
-              TextField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nome de Exibição',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.badge),
-                ),
-              ),
-
-              const SizedBox(height: 32),
-
-              // --- BOTÃO SALVAR ---
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _saveProfile,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1E88E5),
-                    foregroundColor: Colors.white,
-                  ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          'SALVAR ALTERAÇÕES',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                  // --- ÁREA DA FOTO ---
+                  GestureDetector(
+                    onTap: _pickImage,
+                    child: Stack(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: const Color(0xFF1E88E5),
+                              width: 3,
+                            ),
+                          ),
+                          child: CircleAvatar(
+                            radius: 60,
+                            backgroundColor: Colors.grey.shade200,
+                            backgroundImage: _imageFile != null
+                                ? FileImage(_imageFile!) as ImageProvider
+                                : (_avatarUrl != null && _avatarUrl!.isNotEmpty
+                                      ? NetworkImage(_avatarUrl!)
+                                      : null),
+                            child:
+                                (_imageFile == null &&
+                                    (_avatarUrl == null || _avatarUrl!.isEmpty))
+                                ? const Icon(
+                                    Icons.person,
+                                    size: 60,
+                                    color: Colors.grey,
+                                  )
+                                : null,
+                          ),
                         ),
-                ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1E88E5),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            child: const Icon(
+                              Icons.camera_alt,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Toque na foto para alterar',
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // --- CAMPO NOME ---
+                  TextField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nome de Exibição',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.badge),
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // --- BOTÃO SALVAR ---
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _saveProfile,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1E88E5),
+                        foregroundColor: Colors.white,
+                        elevation: isLargeScreen ? 2 : 1,
+                      ),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                              'SALVAR ALTERAÇÕES',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
