@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter/foundation.dart'; // Adicionado para debugPrint
-
-// --- NOVOS IMPORTS NECESSÁRIOS ---
-import 'package:vlinix/main.dart'; // Para acessar MyApp.setLocale
-import 'package:vlinix/l10n/app_localizations.dart'; // Para os textos traduzidos
-// ---------------------------------
+import 'package:vlinix/main.dart';
+import 'package:vlinix/l10n/app_localizations.dart';
 
 import 'login_screen.dart';
 import 'clients_screen.dart';
@@ -14,12 +10,9 @@ import 'services_screen.dart';
 import 'appointments_screen.dart';
 import 'all_vehicles_screen.dart';
 import 'finance_screen.dart';
-
-// --- IMPORTS DAS TELAS DE CRIAÇÃO ---
 import 'add_client_screen.dart';
 import 'add_vehicle_screen.dart';
 import 'add_appointment_screen.dart';
-// ------------------------------------
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -31,7 +24,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final User? _user = Supabase.instance.client.auth.currentUser;
 
-  // Variáveis (Limpas: Removidos totais de clientes/veículos)
   int _todayAppointmentsCount = 0;
   List<Map<String, dynamic>> _todayAppointments = [];
   List<Map<String, dynamic>> _upcomingAppointments = [];
@@ -48,16 +40,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final supabase = Supabase.instance.client;
 
     try {
-      // --- REMOVIDO: Consultas de contagem de clientes e veículos ---
-
-      // Datas de Hoje
       final now = DateTime.now();
       final startOfDay = DateTime(
         now.year,
         now.month,
         now.day,
       ).toUtc().toIso8601String();
-
       final endOfDay = DateTime(
         now.year,
         now.month,
@@ -67,32 +55,37 @@ class _HomeScreenState extends State<HomeScreen> {
         59,
       ).toUtc().toIso8601String();
 
+      // QUERY ATUALIZADA:
+      // Agora buscamos 'appointment_services' para pegar múltiplos itens e preços.
+      // Mantemos 'services(name)' para compatibilidade com dados antigos.
+      const selectQuery = '''
+        *,
+        clients(full_name),
+        vehicles(model, plate),
+        services(name),
+        appointment_services(price, services(name))
+      ''';
+
       // 2. Busca HOJE
       final todayData = await supabase
           .from('appointments')
-          .select(
-            '*, clients(full_name), vehicles(model, plate), services(name)',
-          )
+          .select(selectQuery)
           .gte('start_time', startOfDay)
           .lte('start_time', endOfDay)
           .order('start_time', ascending: true);
 
-      // 3. Busca PRÓXIMOS (Futuro) - Limite de 5
+      // 3. Busca PRÓXIMOS
       final upcomingData = await supabase
           .from('appointments')
-          .select(
-            '*, clients(full_name), vehicles(model, plate), services(name)',
-          )
+          .select(selectQuery)
           .gt('start_time', endOfDay)
           .order('start_time', ascending: true)
           .limit(5);
 
       if (mounted) {
         setState(() {
-          // Apenas carregamos o que vamos mostrar na lista
           _todayAppointments = List<Map<String, dynamic>>.from(todayData);
-          _todayAppointmentsCount =
-              _todayAppointments.length; // Usado no título
+          _todayAppointmentsCount = _todayAppointments.length;
           _upcomingAppointments = List<Map<String, dynamic>>.from(upcomingData);
           _isLoading = false;
         });
@@ -103,7 +96,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // --- ALTERAR STATUS COM PAGAMENTO ---
   Future<void> _updateStatus(
     int id,
     String newStatus, {
@@ -111,7 +103,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }) async {
     try {
       final Map<String, dynamic> updateData = {'status': newStatus};
-
       if (newStatus == 'concluido') {
         updateData['payment_method'] = paymentMethod;
       } else {
@@ -128,13 +119,10 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) {
         final lang = AppLocalizations.of(context)!;
         bool isCompleted = newStatus == 'concluido';
-
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              isCompleted
-                  ? '${lang.statusDone} ($paymentMethod) ✅'
-                  : '${lang.statusPending} 🟠',
+              isCompleted ? '${lang.statusDone} ✅' : '${lang.statusPending} 🟠',
             ),
             backgroundColor: isCompleted ? Colors.green : Colors.orange,
           ),
@@ -143,77 +131,40 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao atualizar: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
         );
       }
     }
   }
 
-  // --- DIÁLOGO DE PAGAMENTO ---
-  void _showPaymentDialog(int appointmentId, String serviceName) {
+  void _showPaymentDialog(int appointmentId) {
     final lang = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (ctx) {
         return SimpleDialog(
-          title: Text(lang.dialogPaymentTitle), // "Forma de Pagamento"
+          title: Text(lang.dialogPaymentTitle),
           children: [
-            SimpleDialogOption(
-              padding: const EdgeInsets.all(15),
-              child: Row(
-                children: [
-                  const Icon(Icons.money, color: Colors.green),
-                  const SizedBox(width: 10),
-                  Text(lang.paymentCash), // "Dinheiro"
-                ],
-              ),
-              onPressed: () {
-                Navigator.pop(ctx);
-                _updateStatus(
-                  appointmentId,
-                  'concluido',
-                  paymentMethod: 'Dinheiro',
-                );
-              },
+            _buildPaymentOption(
+              ctx,
+              appointmentId,
+              lang.paymentCash,
+              Icons.money,
+              Colors.green,
             ),
-            SimpleDialogOption(
-              padding: const EdgeInsets.all(15),
-              child: Row(
-                children: [
-                  const Icon(Icons.credit_card, color: Colors.blue),
-                  const SizedBox(width: 10),
-                  Text(lang.paymentCard), // "Cartão"
-                ],
-              ),
-              onPressed: () {
-                Navigator.pop(ctx);
-                _updateStatus(
-                  appointmentId,
-                  'concluido',
-                  paymentMethod: 'Cartão',
-                );
-              },
+            _buildPaymentOption(
+              ctx,
+              appointmentId,
+              lang.paymentCard,
+              Icons.credit_card,
+              Colors.blue,
             ),
-            SimpleDialogOption(
-              padding: const EdgeInsets.all(15),
-              child: Row(
-                children: [
-                  const Icon(Icons.calendar_today, color: Colors.purple),
-                  const SizedBox(width: 10),
-                  Text(lang.paymentPlan), // "Plano Mensal"
-                ],
-              ),
-              onPressed: () {
-                Navigator.pop(ctx);
-                _updateStatus(
-                  appointmentId,
-                  'concluido',
-                  paymentMethod: 'Plano Mensal',
-                );
-              },
+            _buildPaymentOption(
+              ctx,
+              appointmentId,
+              lang.paymentPlan,
+              Icons.calendar_today,
+              Colors.purple,
             ),
           ],
         );
@@ -221,17 +172,79 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  SimpleDialogOption _buildPaymentOption(
+    BuildContext ctx,
+    int id,
+    String label,
+    IconData icon,
+    Color color,
+  ) {
+    return SimpleDialogOption(
+      padding: const EdgeInsets.all(15),
+      child: Row(
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 10),
+          Text(label),
+        ],
+      ),
+      onPressed: () {
+        Navigator.pop(ctx);
+        _updateStatus(id, 'concluido', paymentMethod: label);
+      },
+    );
+  }
+
   Future<void> _signOut() async {
     await Supabase.instance.client.auth.signOut();
-    if (mounted)
+    if (mounted) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const LoginScreen()),
       );
+    }
   }
 
   String _formatTime(String isoString) {
     return DateFormat('HH:mm').format(DateTime.parse(isoString).toLocal());
+  }
+
+  // --- LÓGICA DE PROCESSAMENTO DOS DADOS DO AGENDAMENTO ---
+  Map<String, dynamic> _processAppointmentData(Map<String, dynamic> apt) {
+    String serviceNames = '';
+    double totalPrice = 0.0;
+
+    // 1. Tenta pegar da nova tabela (Múltiplos)
+    if (apt['appointment_services'] != null &&
+        (apt['appointment_services'] as List).isNotEmpty) {
+      final items = apt['appointment_services'] as List;
+
+      // Concatena nomes: "Lavagem, Cera"
+      serviceNames = items.map((i) => i['services']['name']).join(', ');
+
+      // Soma preços
+      totalPrice = items.fold(0.0, (sum, i) => sum + (i['price'] ?? 0.0));
+    }
+    // 2. Fallback: Tenta pegar da estrutura antiga (Legado)
+    else if (apt['services'] != null) {
+      serviceNames = apt['services']['name'];
+      // Como não temos o preço histórico na tabela antiga facilmente aqui,
+      // podemos assumir 0 ou tentar pegar do cadastro atual, mas vamos deixar 0 no fallback visual.
+    } else {
+      serviceNames = 'Serviço não identificado';
+    }
+
+    return {
+      'clientName': apt['clients'] != null
+          ? apt['clients']['full_name']
+          : 'Desconhecido',
+      'vehicleInfo': apt['vehicles'] != null
+          ? "${apt['vehicles']['model']} (${apt['vehicles']['plate']})"
+          : 'Carro?',
+      'serviceNames': serviceNames,
+      'totalPrice': totalPrice,
+      'isCompleted': apt['status'] == 'concluido',
+    };
   }
 
   @override
@@ -239,28 +252,22 @@ class _HomeScreenState extends State<HomeScreen> {
     final String displayName = _user?.userMetadata?['full_name'] ?? 'Usuário';
     final String email = _user?.email ?? 'email@vlinix.com';
     final String? photoUrl = _user?.userMetadata?['avatar_url'];
-
-    // Instância de tradução
     final lang = AppLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          lang.appTitle, // "Vlinix Dashboard"
-          style: const TextStyle(color: Colors.white),
-        ),
+        title: Text(lang.appTitle, style: const TextStyle(color: Colors.white)),
         backgroundColor: const Color(0xFF1E88E5),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           PopupMenuButton<String>(
             icon: const Icon(Icons.language),
-            onSelected: (String langCode) {
-              MyApp.setLocale(context, Locale(langCode));
-            },
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-              const PopupMenuItem(value: 'pt', child: Text('🇧🇷 Português')),
-              const PopupMenuItem(value: 'en', child: Text('🇺🇸 English')),
-              const PopupMenuItem(value: 'es', child: Text('🇪🇸 Español')),
+            onSelected: (String langCode) =>
+                MyApp.setLocale(context, Locale(langCode)),
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'pt', child: Text('🇧🇷 Português')),
+              PopupMenuItem(value: 'en', child: Text('🇺🇸 English')),
+              PopupMenuItem(value: 'es', child: Text('🇪🇸 Español')),
             ],
           ),
           IconButton(
@@ -269,199 +276,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-
-      // --- BOTÃO MULTIFUNÇÃO ---
-      floatingActionButton: PopupMenuButton<String>(
-        offset: const Offset(0, -200), // Faz o menu abrir "para cima" do botão
-        tooltip: 'Criar Novo',
-        child: Container(
-          height: 56,
-          width: 56,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: const Color(0xFF1E88E5),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 6,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: const Icon(Icons.add, color: Colors.white, size: 28),
-        ),
-        onSelected: (value) {
-          if (value == 'cliente') {
-            // Vai para ADD CLIENTE
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const AddClientScreen()),
-            ).then((_) => _loadDashboardData());
-          } else if (value == 'carro') {
-            // Vai para ADD CARRO
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const AddVehicleScreen()),
-            ).then((_) => _loadDashboardData());
-          } else if (value == 'agendamento') {
-            // Vai para ADD AGENDAMENTO
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const AddAppointmentScreen()),
-            ).then((_) => _loadDashboardData());
-          }
-        },
-        itemBuilder: (context) => [
-          const PopupMenuItem(
-            value: 'cliente',
-            child: Row(
-              children: [
-                Icon(Icons.person_add, color: Colors.blue),
-                SizedBox(width: 10),
-                Text('Novo Cliente'),
-              ],
-            ),
-          ),
-          const PopupMenuItem(
-            value: 'carro',
-            child: Row(
-              children: [
-                Icon(Icons.directions_car, color: Colors.orange),
-                SizedBox(width: 10),
-                Text('Novo Carro'),
-              ],
-            ),
-          ),
-          const PopupMenuItem(
-            value: 'agendamento',
-            child: Row(
-              children: [
-                Icon(Icons.calendar_month, color: Colors.green),
-                SizedBox(width: 10),
-                Text('Novo Agendamento'),
-              ],
-            ),
-          ),
-        ],
-      ),
-
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            UserAccountsDrawerHeader(
-              decoration: const BoxDecoration(color: Color(0xFF1E88E5)),
-              accountName: Text(
-                displayName,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
-              accountEmail: Text(email),
-              currentAccountPicture: CircleAvatar(
-                backgroundImage: photoUrl != null
-                    ? NetworkImage(photoUrl)
-                    : null,
-                child: photoUrl == null ? const Icon(Icons.person) : null,
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.dashboard, color: Color(0xFF1E88E5)),
-              title: Text(
-                lang.menuOverview,
-                style: const TextStyle(
-                  color: Color(0xFF1E88E5),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              leading: const Icon(Icons.monetization_on, color: Colors.green),
-              title: Text(
-                lang.menuFinance,
-                style: const TextStyle(
-                  color: Colors.green,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const FinanceScreen(),
-                  ),
-                );
-              },
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.calendar_today),
-              title: Text(lang.menuAgenda),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const AppointmentsScreen(),
-                  ),
-                ).then((_) => _loadDashboardData());
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.people),
-              title: Text(lang.menuClients),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ClientsScreen(),
-                  ),
-                ).then((_) => _loadDashboardData());
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.directions_car),
-              title: Text(lang.menuVehicles),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const AllVehiclesScreen(),
-                  ),
-                ).then((_) => _loadDashboardData());
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.price_change),
-              title: Text(lang.menuServices),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ServicesScreen(),
-                  ),
-                );
-              },
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.exit_to_app, color: Colors.red),
-              title: Text(
-                lang.menuLogout,
-                style: const TextStyle(color: Colors.red),
-              ),
-              onTap: _signOut,
-            ),
-          ],
-        ),
-      ),
-
+      floatingActionButton: _buildFab(),
+      drawer: _buildDrawer(displayName, email, photoUrl, lang),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -472,7 +288,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // --- BOAS VINDAS (Sem Cards) ---
                     Padding(
                       padding: const EdgeInsets.only(bottom: 20.0),
                       child: Text(
@@ -484,10 +299,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
-
-                    // --- TÍTULO COM CONTADOR ---
                     Text(
-                      "${lang.agendaToday} ($_todayAppointmentsCount)", // Agenda de Hoje (3)
+                      "${lang.agendaToday} ($_todayAppointmentsCount)",
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -495,14 +308,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-
                     _buildAppointmentList(
                       _todayAppointments,
                       isToday: true,
                       emptyMsg: lang.agendaEmptyToday,
                     ),
                     const SizedBox(height: 30),
-
                     Text(
                       lang.agendaUpcoming,
                       style: const TextStyle(
@@ -512,7 +323,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-
                     _buildAppointmentList(
                       _upcomingAppointments,
                       isToday: false,
@@ -523,6 +333,184 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
+    );
+  }
+
+  Widget _buildFab() {
+    return PopupMenuButton<String>(
+      offset: const Offset(0, -200),
+      tooltip: 'Criar Novo',
+      child: Container(
+        height: 56,
+        width: 56,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: const Color(0xFF1E88E5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: const Icon(Icons.add, color: Colors.white, size: 28),
+      ),
+      onSelected: (value) {
+        Widget screen;
+        if (value == 'cliente')
+          screen = const AddClientScreen();
+        else if (value == 'carro')
+          screen = const AddVehicleScreen();
+        else
+          screen = const AddAppointmentScreen();
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => screen),
+        ).then((_) => _loadDashboardData());
+      },
+      itemBuilder: (context) => const [
+        PopupMenuItem(
+          value: 'cliente',
+          child: Row(
+            children: [
+              Icon(Icons.person_add, color: Colors.blue),
+              SizedBox(width: 10),
+              Text('Novo Cliente'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'carro',
+          child: Row(
+            children: [
+              Icon(Icons.directions_car, color: Colors.orange),
+              SizedBox(width: 10),
+              Text('Novo Carro'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'agendamento',
+          child: Row(
+            children: [
+              Icon(Icons.calendar_month, color: Colors.green),
+              SizedBox(width: 10),
+              Text('Novo Agendamento'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDrawer(
+    String name,
+    String email,
+    String? photo,
+    AppLocalizations lang,
+  ) {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          UserAccountsDrawerHeader(
+            decoration: const BoxDecoration(color: Color(0xFF1E88E5)),
+            accountName: Text(
+              name,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            accountEmail: Text(email),
+            currentAccountPicture: CircleAvatar(
+              backgroundImage: photo != null ? NetworkImage(photo) : null,
+              child: photo == null ? const Icon(Icons.person) : null,
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.dashboard, color: Color(0xFF1E88E5)),
+            title: Text(
+              lang.menuOverview,
+              style: const TextStyle(
+                color: Color(0xFF1E88E5),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            onTap: () => Navigator.pop(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.monetization_on, color: Colors.green),
+            title: Text(
+              lang.menuFinance,
+              style: const TextStyle(
+                color: Colors.green,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const FinanceScreen()),
+              );
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.calendar_today),
+            title: Text(lang.menuAgenda),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AppointmentsScreen()),
+              ).then((_) => _loadDashboardData());
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.people),
+            title: Text(lang.menuClients),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ClientsScreen()),
+              ).then((_) => _loadDashboardData());
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.directions_car),
+            title: Text(lang.menuVehicles),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AllVehiclesScreen()),
+              ).then((_) => _loadDashboardData());
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.price_change),
+            title: Text(lang.menuServices),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ServicesScreen()),
+              );
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.exit_to_app, color: Colors.red),
+            title: Text(
+              lang.menuLogout,
+              style: const TextStyle(color: Colors.red),
+            ),
+            onTap: _signOut,
+          ),
+        ],
+      ),
     );
   }
 
@@ -559,16 +547,7 @@ class _HomeScreenState extends State<HomeScreen> {
       itemCount: list.length,
       itemBuilder: (context, index) {
         final apt = list[index];
-        final clientName = apt['clients'] != null
-            ? apt['clients']['full_name']
-            : 'Desconhecido';
-        final vehicleInfo = apt['vehicles'] != null
-            ? "${apt['vehicles']['model']} (${apt['vehicles']['plate']})"
-            : 'Carro?';
-        final serviceName = apt['services'] != null
-            ? apt['services']['name']
-            : 'Serviço?';
-        final bool isCompleted = apt['status'] == 'concluido';
+        final data = _processAppointmentData(apt); // Processa nomes e totais
 
         return Card(
           elevation: 2,
@@ -602,27 +581,44 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             title: Text(
-              clientName,
+              data['clientName'],
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            subtitle: Text("$vehicleInfo • $serviceName"),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("${data['vehicleInfo']}"),
+                const SizedBox(height: 2),
+                Text(
+                  "Serviços: ${data['serviceNames']}",
+                  style: TextStyle(color: Colors.grey[700]),
+                ),
+                if (data['totalPrice'] > 0)
+                  Text(
+                    "R\$ ${data['totalPrice'].toStringAsFixed(2)}",
+                    style: const TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+              ],
+            ),
             trailing: IconButton(
               icon: Icon(
-                isCompleted ? Icons.check_circle : Icons.pending,
-                color: isCompleted ? Colors.green : Colors.orange,
+                data['isCompleted'] ? Icons.check_circle : Icons.pending,
+                color: data['isCompleted'] ? Colors.green : Colors.orange,
                 size: 30,
               ),
-              tooltip: isCompleted ? 'Reabrir Serviço' : 'Concluir Serviço',
+              tooltip: data['isCompleted'] ? 'Reabrir' : 'Concluir',
               onPressed: () {
                 final lang = AppLocalizations.of(context)!;
-                if (isCompleted) {
+                if (data['isCompleted']) {
                   showDialog(
                     context: context,
                     builder: (ctx) => AlertDialog(
                       title: Text('${lang.statusPending}?'),
-                      content: const Text(
-                        'Deseja voltar o status para pendente?',
-                      ),
+                      content: const Text('Deseja voltar para pendente?'),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx),
@@ -631,7 +627,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.orange,
-                            foregroundColor: Colors.white,
                           ),
                           onPressed: () {
                             Navigator.pop(ctx);
@@ -643,7 +638,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   );
                 } else {
-                  _showPaymentDialog(apt['id'], serviceName);
+                  _showPaymentDialog(apt['id']);
                 }
               },
             ),

@@ -179,4 +179,16 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get dialogDeleteContent => 'Isso apagará o registro permanentemente.';
+
+  @override
+  String get labelSelectServices => 'Selecionar Serviços';
+
+  @override
+  String get labelTotal => 'Total Estimado';
+
+  @override
+  String get msgSelectService => 'Selecione pelo menos um serviço!';
+
+  @override
+  String get msgSelectClientVehicle => 'Selecione Cliente e Veículo!';
 }

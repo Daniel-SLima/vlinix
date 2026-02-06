@@ -179,4 +179,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dialogDeleteContent => 'This will delete the record permanently.';
+
+  @override
+  String get labelSelectServices => 'Select Services';
+
+  @override
+  String get labelTotal => 'Estimated Total';
+
+  @override
+  String get msgSelectService => 'Select at least one service!';
+
+  @override
+  String get msgSelectClientVehicle => 'Select Client and Vehicle!';
 }

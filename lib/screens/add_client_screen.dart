@@ -21,8 +21,6 @@ class _AddClientScreenState extends State<AddClientScreen> {
   bool _isLoading = false;
 
   // Lista de Países (Mercado Norte-Americano + Brasil)
-  // Nota: O 'value' deve ser único para o Dropdown funcionar perfeitamente.
-  // Como EUA e Canadá são +1, usamos um identificador único no value e tratamos depois.
   final List<Map<String, String>> _countryCodes = [
     {'code': '+1', 'flag': '🇺🇸', 'label': 'USA (+1)', 'value': 'US+1'},
     {'code': '+1', 'flag': '🇨🇦', 'label': 'CAN (+1)', 'value': 'CA+1'},
@@ -30,7 +28,6 @@ class _AddClientScreenState extends State<AddClientScreen> {
     {'code': '+55', 'flag': '🇧🇷', 'label': 'BRA (+55)', 'value': 'BR+55'},
   ];
 
-  // Variável para controlar a seleção única do dropdown (combinação País+Código)
   String _selectedDropdownValue = 'US+1';
 
   @override
@@ -46,33 +43,27 @@ class _AddClientScreenState extends State<AddClientScreen> {
   }
 
   void _extractCountryCode(String phone) {
-    // Tenta encontrar o código na lista
     bool found = false;
     for (var country in _countryCodes) {
       if (phone.startsWith(country['code']!)) {
         setState(() {
-          // Atualiza o código visual e o valor do dropdown
           _selectedCountryCode = country['code']!;
           _selectedDropdownValue = country['value']!;
-
-          // Remove o código do início para mostrar só o número no campo de texto
           _phoneController.text = phone
               .substring(country['code']!.length)
               .trim();
         });
         found = true;
-        break; // Para no primeiro que encontrar (EUA ganha de Canadá por ordem)
+        break;
       }
     }
-    // Se não achar (número antigo ou sem formato), mostra tudo no campo
     if (!found) {
       _phoneController.text = phone;
     }
   }
 
-  // --- Validação de E-mail ---
   bool _isValidEmail(String email) {
-    if (email.isEmpty) return true; // Opcional
+    if (email.isEmpty) return true;
     final emailRegex = RegExp(
       r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
     );
@@ -105,11 +96,7 @@ class _AddClientScreenState extends State<AddClientScreen> {
 
     try {
       final userId = Supabase.instance.client.auth.currentUser!.id;
-
-      // Limpa caracteres especiais do telefone digitado pelo usuário
       final cleanPhone = phoneRaw.replaceAll(RegExp(r'[\s\-\(\)]'), '');
-
-      // Junta DDI selecionado + Número limpo
       final fullPhone = cleanPhone.isNotEmpty
           ? '$_selectedCountryCode$cleanPhone'
           : '';
@@ -159,6 +146,9 @@ class _AddClientScreenState extends State<AddClientScreen> {
     final isEditing = widget.clientToEdit != null;
     final isLargeScreen = MediaQuery.of(context).size.width > 600;
 
+    // Altura padrão do Material Design para Inputs
+    const double inputHeight = 56.0;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditing ? lang.titleEditClient : lang.titleNewClient),
@@ -203,16 +193,18 @@ class _AddClientScreenState extends State<AddClientScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // --- SELETOR DE PAÍS + TELEFONE ---
+                  // --- SELETOR DE PAÍS + TELEFONE (Visual Unificado) ---
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Dropdown de País
                       Container(
-                        height: 56,
+                        height: inputHeight, // Altura fixa igual ao TextField
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade500),
+                          border: Border.all(
+                            color: Colors.grey,
+                          ), // Mesma cor da borda padrão
                           borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(4),
                             bottomLeft: Radius.circular(4),
@@ -223,10 +215,13 @@ class _AddClientScreenState extends State<AddClientScreen> {
                           child: DropdownButton<String>(
                             value: _selectedDropdownValue,
                             icon: const Icon(Icons.arrow_drop_down),
+                            style: const TextStyle(
+                              color: Colors.black87,
+                              fontSize: 16, // Tamanho de fonte padrão do input
+                            ),
                             onChanged: (newValue) {
                               setState(() {
                                 _selectedDropdownValue = newValue!;
-                                // Encontra o código real baseado no valor selecionado (ex: pega '+1' de 'US+1')
                                 _selectedCountryCode = _countryCodes.firstWhere(
                                   (c) => c['value'] == newValue,
                                 )['code']!;
@@ -234,39 +229,60 @@ class _AddClientScreenState extends State<AddClientScreen> {
                             },
                             items: _countryCodes.map((country) {
                               return DropdownMenuItem(
-                                value: country['value'], // Valor único
-                                child: Text(
-                                  "${country['flag']} ${country['code']}",
-                                  style: const TextStyle(fontSize: 16),
+                                value: country['value'],
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      country['flag']!,
+                                      style: const TextStyle(fontSize: 24),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      country['code']!,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               );
                             }).toList(),
                           ),
                         ),
                       ),
-                      // Campo de Número
+
+                      // Campo de Número (Grudado na direita)
                       Expanded(
-                        child: TextField(
-                          controller: _phoneController,
-                          keyboardType: TextInputType.phone,
-                          decoration: InputDecoration(
-                            labelText: lang.labelPhone,
-                            prefixIcon: null,
-                            enabledBorder: const OutlineInputBorder(
-                              borderRadius: BorderRadius.only(
-                                topRight: Radius.circular(4),
-                                bottomRight: Radius.circular(4),
+                        child: SizedBox(
+                          height: inputHeight, // Garante altura igual
+                          child: TextField(
+                            controller: _phoneController,
+                            keyboardType: TextInputType.phone,
+                            // Remove o padding vertical padrão para alinhar o texto
+                            textAlignVertical: TextAlignVertical.center,
+                            decoration: InputDecoration(
+                              labelText: lang.labelPhone,
+                              prefixIcon: null,
+                              // Remove a borda esquerda para "grudar" no dropdown
+                              enabledBorder: const OutlineInputBorder(
+                                borderRadius: BorderRadius.only(
+                                  topRight: Radius.circular(4),
+                                  bottomRight: Radius.circular(4),
+                                ),
+                                borderSide: BorderSide(color: Colors.grey),
                               ),
-                              borderSide: BorderSide(color: Colors.grey),
-                            ),
-                            focusedBorder: const OutlineInputBorder(
-                              borderRadius: BorderRadius.only(
-                                topRight: Radius.circular(4),
-                                bottomRight: Radius.circular(4),
+                              focusedBorder: const OutlineInputBorder(
+                                borderRadius: BorderRadius.only(
+                                  topRight: Radius.circular(4),
+                                  bottomRight: Radius.circular(4),
+                                ),
+                                borderSide: BorderSide(
+                                  color: Color(0xFF1E88E5),
+                                  width: 2,
+                                ),
                               ),
-                              borderSide: BorderSide(
-                                color: Color(0xFF1E88E5),
-                                width: 2,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
                               ),
                             ),
                           ),

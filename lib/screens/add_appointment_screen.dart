@@ -17,14 +17,14 @@ class AddAppointmentScreen extends StatefulWidget {
 class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
   // Dados do Banco
   List<Map<String, dynamic>> _clients = [];
-  List<Map<String, dynamic>> _allServices = []; // Lista completa disponível
+  List<Map<String, dynamic>> _allServices = [];
   List<Map<String, dynamic>> _clientVehicles = [];
 
   // Seleções do Usuário
   int? _selectedClientId;
   int? _selectedVehicleId;
 
-  // --- LISTA DE SERVIÇOS SELECIONADOS (NOVO) ---
+  // Lista de Serviços Selecionados
   List<Map<String, dynamic>> _selectedServices = [];
 
   // Data e Hora
@@ -55,7 +55,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
     _fetchInitialData();
   }
 
-  // Carrega Dados Iniciais
   Future<void> _fetchInitialData() async {
     final supabase = Supabase.instance.client;
 
@@ -78,17 +77,16 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
           _allServices = List<Map<String, dynamic>>.from(servicesData);
         });
 
-        // Se estiver editando, carrega veículos
         if (_selectedClientId != null) {
           _fetchVehicles(_selectedClientId!);
         }
 
-        // --- LÓGICA DE EDIÇÃO (LEGADO VS NOVO) ---
+        // Lógica de Edição (Carregar serviços existentes)
         if (widget.appointmentToEdit != null) {
-          // A. Verifica se já existem itens na tabela nova (appointment_services)
+          // A. Busca na tabela nova
           final itemsData = await supabase
               .from('appointment_services')
-              .select('service_id, services(*)') // Join para pegar detalhes
+              .select('service_id, services(*)')
               .eq('appointment_id', widget.appointmentToEdit!['id']);
 
           if (itemsData.isNotEmpty) {
@@ -98,7 +96,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
               );
             });
           }
-          // B. Fallback: Se não achar na nova, verifica se tem ID antigo na tabela appointments
+          // B. Fallback (Legado)
           else if (widget.appointmentToEdit!['service_id'] != null) {
             final legacyId = widget.appointmentToEdit!['service_id'];
             final legacyService = _allServices.firstWhere(
@@ -118,7 +116,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
     }
   }
 
-  // Carrega Veículos
   Future<void> _fetchVehicles(int clientId) async {
     final vehiclesData = await Supabase.instance.client
         .from('vehicles')
@@ -129,7 +126,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
       setState(() {
         _clientVehicles = List<Map<String, dynamic>>.from(vehiclesData);
 
-        // Seleção Automática (Se só tiver 1)
         if (_clientVehicles.length == 1) {
           _selectedVehicleId = _clientVehicles.first['id'];
         } else {
@@ -146,53 +142,115 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
     }
   }
 
-  // --- UI: DIALOG DE SELEÇÃO MÚLTIPLA ---
+  // --- MUDANÇA AQUI: DIALOG RESPONSIVO ---
   void _showMultiSelectServices() {
+    final isLargeScreen = MediaQuery.of(context).size.width > 600;
+    final lang = AppLocalizations.of(context)!;
+
     showDialog(
       context: context,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
-            return AlertDialog(
-              title: const Text('Selecione os Serviços'),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _allServices.length,
-                  itemBuilder: (context, index) {
-                    final service = _allServices[index];
-                    final isSelected = _selectedServices.any(
-                      (s) => s['id'] == service['id'],
-                    );
+            // Usamos Dialog + Container para controlar a largura exata
+            return Dialog(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Container(
+                // AQUI ESTÁ O SEGREDO: Largura fixa no PC, ou ajustada no celular
+                width: isLargeScreen ? 500 : null,
+                constraints: BoxConstraints(
+                  maxHeight:
+                      MediaQuery.of(context).size.height *
+                      0.8, // Altura máx 80% da tela
+                ),
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize:
+                      MainAxisSize.min, // Encolhe se tiver poucos itens
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Título
+                    Text(
+                      lang.labelSelectServices, // "Selecionar Serviços"
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
 
-                    return CheckboxListTile(
-                      title: Text(service['name']),
-                      subtitle: Text('R\$ ${service['price']}'),
-                      value: isSelected,
-                      onChanged: (bool? value) {
-                        setStateDialog(() {
-                          if (value == true) {
-                            _selectedServices.add(service);
-                          } else {
-                            _selectedServices.removeWhere(
-                              (s) => s['id'] == service['id'],
-                            );
-                          }
-                        });
-                        // Atualiza a tela de trás (AddAppointmentScreen) para recalcular total
-                        this.setState(() {});
-                      },
-                    );
-                  },
+                    // Lista Scrollável
+                    Flexible(
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: _allServices.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final service = _allServices[index];
+                          final isSelected = _selectedServices.any(
+                            (s) => s['id'] == service['id'],
+                          );
+
+                          return CheckboxListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              service['name'],
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            subtitle: Text(
+                              'R\$ ${service['price']}',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                            activeColor: const Color(0xFF1E88E5),
+                            value: isSelected,
+                            onChanged: (bool? value) {
+                              setStateDialog(() {
+                                if (value == true) {
+                                  _selectedServices.add(service);
+                                } else {
+                                  _selectedServices.removeWhere(
+                                    (s) => s['id'] == service['id'],
+                                  );
+                                }
+                              });
+                              this.setState(
+                                () {},
+                              ); // Atualiza tela de trás (Total)
+                            },
+                          );
+                        },
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Botão Fechar
+                    SizedBox(
+                      width: double.infinity,
+                      height: 45,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1E88E5),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text(
+                          'OK',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('OK'),
-                ),
-              ],
             );
           },
         );
@@ -259,16 +317,18 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
 
   // --- SALVAR ---
   Future<void> _save() async {
+    final lang = AppLocalizations.of(context)!;
+
     if (_selectedClientId == null || _selectedVehicleId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecione Cliente e Veículo!')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(lang.msgSelectClientVehicle)));
       return;
     }
     if (_selectedServices.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecione pelo menos um serviço!')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(lang.msgSelectService)));
       return;
     }
 
@@ -297,7 +357,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
       final googleTitle = 'Vlinix: $servicesNames - $clientName';
       final googleDesc = 'Serviços: $servicesNames\nTotal: R\$ $_totalPrice';
 
-      // 3. Google Calendar (Somente Criação por enquanto para simplificar)
+      // 3. Google Calendar
       String? googleEventId;
       if (widget.appointmentToEdit == null) {
         googleEventId = await _createGoogleEvent(
@@ -308,7 +368,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
         );
       }
 
-      // 4. Salvar Agendamento (PAI)
+      // 4. Salvar Pai
       int appointmentId;
 
       if (widget.appointmentToEdit == null) {
@@ -322,7 +382,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
               'start_time': finalDateTime.toUtc().toIso8601String(),
               'status': 'pendente',
               'google_event_id': googleEventId,
-              // 'service_id' agora fica NULL
             })
             .select()
             .single();
@@ -340,14 +399,14 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
             })
             .eq('id', appointmentId);
 
-        // Remove vínculos antigos para regravar (estratégia segura de update)
+        // Remove vínculos antigos
         await supabase
             .from('appointment_services')
             .delete()
             .eq('appointment_id', appointmentId);
       }
 
-      // 5. Salvar Itens (FILHOS)
+      // 5. Salvar Filhos
       final List<Map<String, dynamic>> servicesToInsert = _selectedServices.map(
         (service) {
           return {
@@ -477,19 +536,19 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        // --- CAMPO DE SERVIÇOS (MULTI-SELECT) ---
+                        // --- CAMPO DE SERVIÇOS (CLICÁVEL) ---
                         InkWell(
                           onTap: _showMultiSelectServices,
                           child: InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: 'Serviços',
-                              border: OutlineInputBorder(),
-                              suffixIcon: Icon(Icons.arrow_drop_down),
+                            decoration: InputDecoration(
+                              labelText: lang.labelService, // "Serviço"
+                              border: const OutlineInputBorder(),
+                              suffixIcon: const Icon(Icons.arrow_drop_down),
                             ),
                             child: _selectedServices.isEmpty
-                                ? const Text(
-                                    'Selecione os serviços...',
-                                    style: TextStyle(color: Colors.grey),
+                                ? Text(
+                                    lang.labelSelectServices,
+                                    style: const TextStyle(color: Colors.grey),
                                   )
                                 : Wrap(
                                     spacing: 8.0,
@@ -518,7 +577,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                             child: Align(
                               alignment: Alignment.centerRight,
                               child: Text(
-                                'Total Estimado: R\$ $_totalPrice',
+                                '${lang.labelTotal}: R\$ $_totalPrice',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,

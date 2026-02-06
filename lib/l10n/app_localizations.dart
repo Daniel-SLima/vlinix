@@ -441,6 +441,30 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Isso apagará o registro permanentemente.'**
   String get dialogDeleteContent;
+
+  /// No description provided for @labelSelectServices.
+  ///
+  /// In pt, this message translates to:
+  /// **'Selecionar Serviços'**
+  String get labelSelectServices;
+
+  /// No description provided for @labelTotal.
+  ///
+  /// In pt, this message translates to:
+  /// **'Total Estimado'**
+  String get labelTotal;
+
+  /// No description provided for @msgSelectService.
+  ///
+  /// In pt, this message translates to:
+  /// **'Selecione pelo menos um serviço!'**
+  String get msgSelectService;
+
+  /// No description provided for @msgSelectClientVehicle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Selecione Cliente e Veículo!'**
+  String get msgSelectClientVehicle;
 }
 
 class _AppLocalizationsDelegate

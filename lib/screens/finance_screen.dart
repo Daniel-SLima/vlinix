@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter/foundation.dart'; // Adicionado para debugPrint
-// IMPORT NECESSÁRIO PARA TRADUÇÃO:
 import 'package:vlinix/l10n/app_localizations.dart';
 
 class FinanceScreen extends StatefulWidget {
@@ -19,8 +17,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
 
   // Controle do Filtro e Data
   DateTime _selectedDate = DateTime.now();
-  String _selectedFilter =
-      'Todos'; // Opções internas: Todos, Dinheiro, Cartão, Plano Mensal
+  String _selectedFilter = 'Todos';
 
   @override
   void initState() {
@@ -46,7 +43,6 @@ class _FinanceScreenState extends State<FinanceScreen> {
     });
   }
 
-  // --- AQUI ESTÁ A CORREÇÃO DO ERRO DE ORDEM (.eq) ---
   Future<void> _loadFinanceData() async {
     setState(() => _isLoading = true);
 
@@ -66,41 +62,84 @@ class _FinanceScreenState extends State<FinanceScreen> {
     ).toUtc().toIso8601String();
 
     try {
-      // 1. Monta a query BASE (Sem ordenar ainda)
+      // 1. QUERY ATUALIZADA PARA SUPORTAR MÚLTIPLOS SERVIÇOS
+      // Buscamos 'appointment_services' para pegar preços e nomes.
       var query = Supabase.instance.client
           .from('appointments')
           .select(
-            'start_time, payment_method, services(name, price), clients(full_name), vehicles(model, plate)',
+            '''
+            start_time, 
+            payment_method, 
+            clients(full_name), 
+            appointment_services(price, services(name)), 
+            services(name, price) 
+            ''',
+            // Mantemos 'services' antigo como fallback para dados legados
           )
           .eq('status', 'concluido')
           .gte('start_time', startOfMonth)
           .lte('start_time', endOfMonth);
 
-      // 2. Aplica o filtro de pagamento (se não for "Todos")
+      // 2. Aplica o filtro de pagamento
       if (_selectedFilter != 'Todos') {
         query = query.eq('payment_method', _selectedFilter);
       }
 
-      // 3. AGORA sim ordenamos e buscamos os dados
+      // 3. Ordena e busca
       final data = await query.order('start_time', ascending: false);
 
-      double total = 0;
-      final List<Map<String, dynamic>> tempList = [];
+      double totalMonthRevenue = 0;
+      final List<Map<String, dynamic>> processedList = [];
 
       for (var item in data) {
-        final service = item['services'];
-        final price = (service['price'] is int)
-            ? (service['price'] as int).toDouble()
-            : (service['price'] as double? ?? 0.0);
+        double appointmentTotal = 0.0;
+        String serviceNames = '';
 
-        total += price;
-        tempList.add(item);
+        // LÓGICA DE CÁLCULO (HÍBRIDA: NOVO + LEGADO)
+
+        // A. Tenta pegar da nova estrutura (Lista)
+        if (item['appointment_services'] != null &&
+            (item['appointment_services'] as List).isNotEmpty) {
+          final items = item['appointment_services'] as List;
+
+          // Soma preços
+          appointmentTotal = items.fold(
+            0.0,
+            (sum, i) => sum + (i['price'] ?? 0.0),
+          );
+
+          // Concatena nomes (ex: "Lavagem, Cera")
+          serviceNames = items.map((i) => i['services']['name']).join(', ');
+        }
+        // B. Fallback para estrutura antiga (Único)
+        else if (item['services'] != null) {
+          final s = item['services'];
+          appointmentTotal = (s['price'] is int)
+              ? (s['price'] as int).toDouble()
+              : (s['price'] as double? ?? 0.0);
+          serviceNames = s['name'];
+        } else {
+          serviceNames = 'Serviço desconhecido';
+        }
+
+        totalMonthRevenue += appointmentTotal;
+
+        // Cria um objeto limpo para a lista visual
+        processedList.add({
+          'start_time': item['start_time'],
+          'client_name': item['clients'] != null
+              ? item['clients']['full_name']
+              : 'Cliente?',
+          'service_name': serviceNames,
+          'total_price': appointmentTotal,
+          'payment_method': item['payment_method'],
+        });
       }
 
       if (mounted) {
         setState(() {
-          _totalRevenue = total;
-          _records = tempList;
+          _totalRevenue = totalMonthRevenue;
+          _records = processedList;
           _isLoading = false;
         });
       }
@@ -111,7 +150,6 @@ class _FinanceScreenState extends State<FinanceScreen> {
   }
 
   String _formatCurrency(double value) {
-    // Usa o locale do contexto para formatar (R$ ou $)
     final locale = Localizations.localeOf(context).languageCode;
     final symbol = locale == 'pt' ? 'R\$' : '\$';
     return NumberFormat.currency(locale: locale, symbol: symbol).format(value);
@@ -145,7 +183,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(lang.financeTitle), // "Controle Financeiro" traduzido
+        title: Text(lang.financeTitle),
         backgroundColor: Colors.green.shade700,
         foregroundColor: Colors.white,
       ),
@@ -165,7 +203,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 Text(
                   DateFormat(
                     'MMMM yyyy',
-                    locale, // Locale dinâmico
+                    locale,
                   ).format(_selectedDate).toUpperCase(),
                   style: TextStyle(
                     fontSize: 18,
@@ -181,13 +219,12 @@ class _FinanceScreenState extends State<FinanceScreen> {
             ),
           ),
 
-          // 2. FILTROS DE PAGAMENTO
+          // 2. FILTROS
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                // Passamos o VALOR INTERNO (para lógica) e o LABEL TRADUZIDO (para exibir)
                 _buildFilterChip('Todos', lang.filterAll),
                 const SizedBox(width: 8),
                 _buildFilterChip('Dinheiro', lang.paymentCash),
@@ -211,7 +248,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
               borderRadius: BorderRadius.circular(15),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withValues(alpha: 0.3),
+                  color: Colors.grey.withOpacity(0.3),
                   blurRadius: 10,
                   offset: const Offset(0, 5),
                 ),
@@ -220,7 +257,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
             child: Column(
               children: [
                 Text(
-                  lang.financeTotal, // "Faturamento Total"
+                  lang.financeTotal,
                   style: const TextStyle(color: Colors.white70, fontSize: 16),
                 ),
                 const SizedBox(height: 5),
@@ -238,7 +275,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
             ),
           ),
 
-          // 4. LISTA
+          // 4. LISTA DE TRANSAÇÕES
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -253,7 +290,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                           color: Colors.grey.shade300,
                         ),
                         Text(
-                          lang.financeEmpty, // "Nenhum registro..."
+                          lang.financeEmpty,
                           style: const TextStyle(color: Colors.grey),
                         ),
                       ],
@@ -265,13 +302,6 @@ class _FinanceScreenState extends State<FinanceScreen> {
                     separatorBuilder: (_, __) => const Divider(),
                     itemBuilder: (context, index) {
                       final item = _records[index];
-                      final serviceName = item['services']['name'];
-                      final clientName = item['clients']['full_name'];
-                      final paymentMethod =
-                          item['payment_method'] ?? 'Não inf.';
-                      final price = (item['services']['price'] is int)
-                          ? (item['services']['price'] as int).toDouble()
-                          : (item['services']['price'] as double? ?? 0.0);
 
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
@@ -290,22 +320,22 @@ class _FinanceScreenState extends State<FinanceScreen> {
                           ),
                         ),
                         title: Text(
-                          serviceName,
+                          item['service_name'],
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Row(
                           children: [
-                            Text(clientName),
+                            Text(item['client_name']),
                             const SizedBox(width: 5),
                             const Text(
                               '•',
                               style: TextStyle(color: Colors.grey),
                             ),
                             const SizedBox(width: 5),
-                            _getPaymentIcon(paymentMethod),
+                            _getPaymentIcon(item['payment_method']),
                             const SizedBox(width: 4),
                             Text(
-                              paymentMethod,
+                              item['payment_method'] ?? '?',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey.shade700,
@@ -314,7 +344,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                           ],
                         ),
                         trailing: Text(
-                          _formatCurrency(price),
+                          _formatCurrency(item['total_price']),
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
