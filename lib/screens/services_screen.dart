@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
-import 'package:vlinix/theme/app_colors.dart'; // <--- IMPORTANTE
+import 'package:vlinix/theme/app_colors.dart';
+import 'package:vlinix/widgets/user_profile_menu.dart'; // <--- IMPORTANTE
 import 'add_service_screen.dart';
 
 class ServicesScreen extends StatefulWidget {
@@ -18,7 +19,6 @@ class _ServicesScreenState extends State<ServicesScreen> {
       .order('name');
 
   Future<void> _delete(int id) async {
-    // Confirmação antes de apagar (Segurança extra para serviços em uso)
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -80,6 +80,12 @@ class _ServicesScreenState extends State<ServicesScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        // --- 1. AVATAR ---
+        leading: const Padding(
+          padding: EdgeInsets.all(8.0),
+          child: UserProfileMenu(),
+        ),
+
         title: Text(lang.menuServices),
         centerTitle: true,
         // Theme cuida das cores

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vlinix/theme/app_colors.dart'; // Nossas cores
-import 'home_screen.dart';
+import 'main_screen.dart'; // <--- IMPORTANTE: Manda para a MainScreen
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -70,8 +70,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
             backgroundColor: AppColors.success,
           ),
         );
+        // <--- MUDANÇA: Vai para a MainScreen
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          MaterialPageRoute(builder: (context) => const MainScreen()),
           (route) => false,
         );
       }

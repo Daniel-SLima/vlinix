@@ -72,6 +72,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get btnDelete => 'Excluir';
 
   @override
+  String get btnEdit => 'Editar';
+
+  @override
   String get labelClient => 'Cliente';
 
   @override
@@ -194,4 +197,28 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get tooltipEditProfile => 'Editar Perfil';
+
+  @override
+  String get titleNewVehicle => 'Novo Veículo';
+
+  @override
+  String get titleNewAppointment => 'Novo Agendamento';
+
+  @override
+  String get labelProfileInfo => 'Suas Informações';
+
+  @override
+  String get msgTapPhoto => 'Toque na foto para alterar';
+
+  @override
+  String get labelDisplayName => 'Nome de Exibição';
+
+  @override
+  String get hintSearchClient => 'Pesquisar Cliente';
+
+  @override
+  String get hintSearchVehicle => 'Pesquisar Veículo';
+
+  @override
+  String get hintSearchGeneric => 'Nome, telefone ou email...';
 }

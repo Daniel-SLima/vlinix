@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
-import 'package:vlinix/theme/app_colors.dart'; // <--- IMPORTANTE
+import 'package:vlinix/theme/app_colors.dart';
+import 'package:vlinix/widgets/user_profile_menu.dart'; // <--- IMPORTANTE
 
 class FinanceScreen extends StatefulWidget {
   const FinanceScreen({super.key});
@@ -63,7 +64,6 @@ class _FinanceScreenState extends State<FinanceScreen> {
     ).toUtc().toIso8601String();
 
     try {
-      // 1. QUERY ATUALIZADA
       var query = Supabase.instance.client
           .from('appointments')
           .select('''
@@ -77,12 +77,10 @@ class _FinanceScreenState extends State<FinanceScreen> {
           .gte('start_time', startOfMonth)
           .lte('start_time', endOfMonth);
 
-      // 2. Aplica o filtro
       if (_selectedFilter != 'Todos') {
         query = query.eq('payment_method', _selectedFilter);
       }
 
-      // 3. Ordena e busca
       final data = await query.order('start_time', ascending: false);
 
       double totalMonthRevenue = 0;
@@ -92,7 +90,6 @@ class _FinanceScreenState extends State<FinanceScreen> {
         double appointmentTotal = 0.0;
         String serviceNames = '';
 
-        // LÓGICA DE CÁLCULO
         if (item['appointment_services'] != null &&
             (item['appointment_services'] as List).isNotEmpty) {
           final items = item['appointment_services'] as List;
@@ -180,13 +177,19 @@ class _FinanceScreenState extends State<FinanceScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        // --- 1. AVATAR ---
+        leading: const Padding(
+          padding: EdgeInsets.all(8.0),
+          child: UserProfileMenu(),
+        ),
+
         title: Text(lang.financeTitle),
         centerTitle: true,
-        // Theme cuida das cores (Chumbo)
+        // Theme cuida das cores
       ),
       body: Column(
         children: [
-          // 1. SELETOR DE MÊS (Estilo limpo)
+          // 1. SELETOR DE MÊS
           Container(
             padding: const EdgeInsets.symmetric(vertical: 10),
             color: Colors.white,
@@ -406,8 +409,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 15,
-                                color: AppColors
-                                    .success, // Verde para dinheiro entrando
+                                color: AppColors.success,
                               ),
                             ),
                           ],
@@ -429,7 +431,6 @@ class _FinanceScreenState extends State<FinanceScreen> {
       onSelected: (bool selected) {
         if (selected) _changeFilter(internalValue);
       },
-      // Dourado quando selecionado, Cinza claro quando não
       selectedColor: AppColors.accent,
       backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(

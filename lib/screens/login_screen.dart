@@ -1,9 +1,9 @@
-import 'package:flutter/foundation.dart'; // Para kIsWeb
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vlinix/main.dart';
-import 'package:vlinix/theme/app_colors.dart'; // <--- IMPORTANTE: Nossas cores
-import 'home_screen.dart';
+import 'package:vlinix/theme/app_colors.dart';
+import 'main_screen.dart'; // <--- MUDANÇA 1: Importar MainScreen
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -30,9 +30,10 @@ class _LoginScreenState extends State<LoginScreen> {
       if (event == AuthChangeEvent.signedIn) {
         if (mounted) {
           FocusManager.instance.primaryFocus?.unfocus();
+          // <--- MUDANÇA 2: Redirecionar para MainScreen
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
+            MaterialPageRoute(builder: (context) => const MainScreen()),
           );
         }
       }
@@ -139,29 +140,30 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // --- CORREÇÃO ERRO 1: LOGO COM FALLBACK CORRETO ---
                   Hero(
                     tag: 'app_logo',
                     child: Image.asset(
-                      'assets/images/logo_symbol.png',
-                      height: 200,
+                      'assets/images/logo_symbol.png', // Logo cheia no login
+                      height: 150,
                       fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(
+                          Icons.directions_car_filled,
+                          size: 80,
+                          color: AppColors.primary,
+                        );
+                      },
                     ),
                   ),
-
                   const SizedBox(height: 10),
-
                   RichText(
                     textAlign: TextAlign.center,
                     text: TextSpan(
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        letterSpacing: 0.5,
-                      ),
-                      children: const [
+                      children: [
                         TextSpan(
                           text: 'V-Linix\n',
                           style: TextStyle(
+                            color: AppColors.textSecondary,
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                             height: 1.4,
@@ -170,6 +172,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         TextSpan(
                           text: 'Auto Detailing Solutions',
                           style: TextStyle(
+                            color: AppColors.textSecondary,
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
                           ),
@@ -245,9 +248,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               height: 50,
                               child: ElevatedButton(
                                 onPressed: _signIn,
-                                // Forçamos a cor aqui caso o Theme não esteja pegando
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primary, // Chumbo
+                                  backgroundColor: AppColors.primary,
                                   foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(30),

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter/foundation.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
-import 'package:vlinix/theme/app_colors.dart'; // <--- IMPORTANTE
+import 'package:vlinix/theme/app_colors.dart';
+import 'package:vlinix/widgets/user_profile_menu.dart'; // <--- IMPORTANTE
 import 'add_appointment_screen.dart';
 
 class AppointmentsScreen extends StatefulWidget {
@@ -52,7 +52,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
 
   // --- APP DELETE ---
   Future<void> _deleteAppointment(int id, String? googleEventId) async {
-    // Confirmação antes de apagar
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -91,7 +90,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     }
   }
 
-  // --- NAVEGAÇÃO ---
   void _navigateToAddEdit({Map<String, dynamic>? appointment}) {
     Navigator.push(
       context,
@@ -115,10 +113,17 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        // --- 1. AVATAR ---
+        leading: const Padding(
+          padding: EdgeInsets.all(8.0),
+          child: UserProfileMenu(),
+        ),
+
         title: Text(lang.menuAgenda),
         centerTitle: true,
-        // Theme cuida das cores (Chumbo)
+        // Theme cuida das cores
       ),
+
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _navigateToAddEdit(),
         label: Text(
@@ -129,6 +134,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
         backgroundColor: AppColors.accent, // Dourado
         foregroundColor: Colors.white,
       ),
+
       body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: _appointmentsStream,
         builder: (context, snapshot) {
@@ -158,17 +164,11 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(
-              16,
-              16,
-              16,
-              80,
-            ), // Espaço pro FAB
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
             itemCount: appointments.length,
             itemBuilder: (context, index) {
               final apt = appointments[index];
 
-              // Mantemos o FutureBuilder pois a lógica original busca dados individuais
               return FutureBuilder(
                 future: Future.wait([
                   Supabase.instance.client
@@ -190,7 +190,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                 builder:
                     (context, AsyncSnapshot<List<dynamic>> detailsSnapshot) {
                       if (!detailsSnapshot.hasData) {
-                        // Placeholder enquanto carrega os detalhes
                         return const Card(
                           child: ListTile(
                             leading: CircularProgressIndicator(strokeWidth: 2),
@@ -217,7 +216,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                             horizontal: 16,
                             vertical: 8,
                           ),
-                          // Indicador Visual de Status
                           leading: Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(

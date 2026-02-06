@@ -226,6 +226,12 @@ abstract class AppLocalizations {
   /// **'Excluir'**
   String get btnDelete;
 
+  /// No description provided for @btnEdit.
+  ///
+  /// In pt, this message translates to:
+  /// **'Editar'**
+  String get btnEdit;
+
   /// No description provided for @labelClient.
   ///
   /// In pt, this message translates to:
@@ -471,6 +477,54 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Editar Perfil'**
   String get tooltipEditProfile;
+
+  /// No description provided for @titleNewVehicle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Novo Veículo'**
+  String get titleNewVehicle;
+
+  /// No description provided for @titleNewAppointment.
+  ///
+  /// In pt, this message translates to:
+  /// **'Novo Agendamento'**
+  String get titleNewAppointment;
+
+  /// No description provided for @labelProfileInfo.
+  ///
+  /// In pt, this message translates to:
+  /// **'Suas Informações'**
+  String get labelProfileInfo;
+
+  /// No description provided for @msgTapPhoto.
+  ///
+  /// In pt, this message translates to:
+  /// **'Toque na foto para alterar'**
+  String get msgTapPhoto;
+
+  /// No description provided for @labelDisplayName.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nome de Exibição'**
+  String get labelDisplayName;
+
+  /// No description provided for @hintSearchClient.
+  ///
+  /// In pt, this message translates to:
+  /// **'Pesquisar Cliente'**
+  String get hintSearchClient;
+
+  /// No description provided for @hintSearchVehicle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Pesquisar Veículo'**
+  String get hintSearchVehicle;
+
+  /// No description provided for @hintSearchGeneric.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nome, telefone ou email...'**
+  String get hintSearchGeneric;
 }
 
 class _AppLocalizationsDelegate

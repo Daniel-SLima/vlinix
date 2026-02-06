@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
-import 'package:vlinix/theme/app_colors.dart'; // <--- IMPORTANTE: Nossas cores
+import 'package:vlinix/theme/app_colors.dart';
+import 'package:vlinix/widgets/user_profile_menu.dart';
 import 'add_client_screen.dart';
 
 class ClientsScreen extends StatefulWidget {
@@ -36,9 +37,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
     super.dispose();
   }
 
-  // --- DELETE ---
   Future<void> _deleteClient(int id) async {
-    // Adicionei uma confirmação para ficar mais seguro/profissional
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -98,32 +97,30 @@ class _ClientsScreenState extends State<ClientsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        leading: const Padding(
+          padding: EdgeInsets.all(8.0),
+          child: UserProfileMenu(),
+        ),
         title: Text(lang.titleManageClients),
         centerTitle: true,
-        // Cor e estilo vêm do Theme (Chumbo)
-        // Adicionamos ícone de busca na AppBar para ficar moderno (opcional, mas legal)
       ),
-
       floatingActionButton: FloatingActionButton(
         onPressed: () => _navigateToAddEdit(),
-        backgroundColor: AppColors.accent, // Dourado
+        backgroundColor: AppColors.accent,
         foregroundColor: Colors.white,
         child: const Icon(Icons.person_add),
       ),
-
       body: Column(
         children: [
-          // --- BARRA DE PESQUISA (Agora mais limpa) ---
           Container(
             padding: const EdgeInsets.all(16.0),
-            color: Colors.white, // Fundo branco na área de busca
+            color: Colors.white,
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                labelText: 'Pesquisar Cliente',
-                hintText: 'Nome, telefone ou email...',
+                labelText: lang.hintSearchClient, // Tradução
+                hintText: lang.hintSearchGeneric, // Tradução
                 prefixIcon: const Icon(Icons.search),
-                // O Theme já cuida das bordas douradas!
                 filled: true,
                 fillColor: AppColors.background,
                 contentPadding: const EdgeInsets.symmetric(
@@ -148,8 +145,6 @@ class _ClientsScreenState extends State<ClientsScreen> {
               ),
             ),
           ),
-
-          // --- LISTA ---
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: _clientsStream,
@@ -162,8 +157,6 @@ class _ClientsScreenState extends State<ClientsScreen> {
                 }
 
                 final allClients = snapshot.data!;
-
-                // Lógica de Filtro
                 final clients = allClients.where((client) {
                   final name = (client['full_name'] ?? '')
                       .toString()
@@ -200,10 +193,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.only(
-                    top: 8,
-                    bottom: 80,
-                  ), // Espaço pro FAB
+                  padding: const EdgeInsets.only(top: 8, bottom: 80),
                   itemCount: clients.length,
                   itemBuilder: (context, index) {
                     final client = clients[index];
@@ -229,6 +219,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
                           vertical: 8,
                         ),
                         leading: CircleAvatar(
+                          // CORREÇÃO: withOpacity
                           backgroundColor: AppColors.primary.withOpacity(0.1),
                           child: Text(
                             firstLetter,

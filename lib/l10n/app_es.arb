@@ -20,6 +20,7 @@
     "btnUpdate": "Guardar Cambios",
     "btnCancel": "Cancelar",
     "btnDelete": "Eliminar",
+    "btnEdit": "Editar",
     "labelClient": "Cliente",
     "labelVehicle": "Vehículo",
     "labelService": "Servicio",
@@ -60,9 +61,13 @@
     "labelTotal": "Total Estimado",
     "msgSelectService": "¡Seleccione al menos un servicio!",
     "msgSelectClientVehicle": "¡Seleccione Cliente y Vehículo!",
-    "labelSelectServices": "Seleccionar Servicios",
-    "labelTotal": "Total Estimado",
-    "msgSelectService": "¡Seleccione al menos un servicio!",
-    "msgSelectClientVehicle": "¡Seleccione Cliente y Vehículo!",
-    "tooltipEditProfile": "Editar Perfil"
+    "tooltipEditProfile": "Editar Perfil",
+    "titleNewVehicle": "Nuevo Vehículo",
+    "titleNewAppointment": "Nueva Cita",
+    "labelProfileInfo": "Tu Información",
+    "msgTapPhoto": "Toca la foto para cambiar",
+    "labelDisplayName": "Nombre para mostrar",
+    "hintSearchClient": "Buscar Cliente",
+    "hintSearchVehicle": "Buscar Vehículo",
+    "hintSearchGeneric": "Nombre, teléfono o email..."
 }
