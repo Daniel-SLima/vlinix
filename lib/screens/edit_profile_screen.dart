@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:vlinix/theme/app_colors.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
+import 'package:vlinix/services/user_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -116,6 +117,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           },
         ),
       );
+
+      UserService.instance.refreshUser();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
