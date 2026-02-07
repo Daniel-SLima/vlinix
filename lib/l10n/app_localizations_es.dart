@@ -225,4 +225,25 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get labelHello => 'Hola';
+
+  @override
+  String get titleNewExpense => 'Nuevo Gasto';
+
+  @override
+  String get labelReason => 'Motivo / Descripción';
+
+  @override
+  String get labelValue => 'Valor';
+
+  @override
+  String get labelDate => 'Fecha';
+
+  @override
+  String get btnAddExpense => 'AÑADIR GASTO';
+
+  @override
+  String get msgFillAllFields => '¡Complete todos los campos!';
+
+  @override
+  String get msgExpenseAdded => '¡Gasto añadido!';
 }

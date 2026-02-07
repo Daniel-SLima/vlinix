@@ -224,4 +224,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get labelHello => 'Hello';
+
+  @override
+  String get titleNewExpense => 'New Expense';
+
+  @override
+  String get labelReason => 'Reason / Description';
+
+  @override
+  String get labelValue => 'Amount';
+
+  @override
+  String get labelDate => 'Date';
+
+  @override
+  String get btnAddExpense => 'ADD EXPENSE';
+
+  @override
+  String get msgFillAllFields => 'Please fill all fields!';
+
+  @override
+  String get msgExpenseAdded => 'Expense added!';
 }

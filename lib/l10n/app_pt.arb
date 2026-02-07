@@ -70,5 +70,12 @@
     "hintSearchClient": "Pesquisar Cliente",
     "hintSearchVehicle": "Pesquisar Veículo",
     "hintSearchGeneric": "Nome, telefone ou email...",
-    "labelHello": "Olá"
+    "labelHello": "Olá",
+    "titleNewExpense": "Nova Despesa",
+    "labelReason": "Motivo / Descrição",
+    "labelValue": "Valor",
+    "labelDate": "Data",
+    "btnAddExpense": "ADICIONAR DESPESA",
+    "msgFillAllFields": "Preencha todos os campos!",
+    "msgExpenseAdded": "Despesa adicionada!"
 }

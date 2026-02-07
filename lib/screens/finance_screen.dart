@@ -3,7 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
 import 'package:vlinix/theme/app_colors.dart';
-import 'package:vlinix/widgets/user_profile_menu.dart'; // <--- IMPORTANTE
+import 'package:vlinix/widgets/user_profile_menu.dart';
+import 'package:vlinix/screens/add_expense_screen.dart'; // <--- Importe a tela nova
 
 class FinanceScreen extends StatefulWidget {
   const FinanceScreen({super.key});
@@ -14,10 +15,15 @@ class FinanceScreen extends StatefulWidget {
 
 class _FinanceScreenState extends State<FinanceScreen> {
   bool _isLoading = true;
+
+  // Totais
   double _totalRevenue = 0.0;
+  double _totalExpenses = 0.0;
+  double _netBalance = 0.0;
+
+  // Lista unificada (Receitas + Despesas)
   List<Map<String, dynamic>> _records = [];
 
-  // Controle do Filtro e Data
   DateTime _selectedDate = DateTime.now();
   String _selectedFilter = 'Todos';
 
@@ -63,8 +69,13 @@ class _FinanceScreenState extends State<FinanceScreen> {
       59,
     ).toUtc().toIso8601String();
 
+    final supabase = Supabase.instance.client;
+
     try {
-      var query = Supabase.instance.client
+      // ---------------------------------------------
+      // 1. BUSCAR RECEITAS (Appointments)
+      // ---------------------------------------------
+      var queryRevenue = supabase
           .from('appointments')
           .select('''
             start_time, 
@@ -78,15 +89,30 @@ class _FinanceScreenState extends State<FinanceScreen> {
           .lte('start_time', endOfMonth);
 
       if (_selectedFilter != 'Todos') {
-        query = query.eq('payment_method', _selectedFilter);
+        queryRevenue = queryRevenue.eq('payment_method', _selectedFilter);
       }
 
-      final data = await query.order('start_time', ascending: false);
+      final revenueData = await queryRevenue;
 
-      double totalMonthRevenue = 0;
-      final List<Map<String, dynamic>> processedList = [];
+      // ---------------------------------------------
+      // 2. BUSCAR DESPESAS (Expenses)
+      // ---------------------------------------------
+      // O RLS no Supabase garante que só vem dados do usuário logado
+      final expensesData = await supabase
+          .from('expenses')
+          .select()
+          .gte('date', startOfMonth)
+          .lte('date', endOfMonth);
 
-      for (var item in data) {
+      // ---------------------------------------------
+      // 3. PROCESSAMENTO E UNIÃO
+      // ---------------------------------------------
+      double revenueTotal = 0.0;
+      double expenseTotal = 0.0;
+      final List<Map<String, dynamic>> combinedList = [];
+
+      // A. Processar Receitas
+      for (var item in revenueData) {
         double appointmentTotal = 0.0;
         String serviceNames = '';
 
@@ -108,23 +134,54 @@ class _FinanceScreenState extends State<FinanceScreen> {
           serviceNames = 'Serviço desconhecido';
         }
 
-        totalMonthRevenue += appointmentTotal;
+        revenueTotal += appointmentTotal;
 
-        processedList.add({
-          'start_time': item['start_time'],
-          'client_name': item['clients'] != null
+        combinedList.add({
+          'type': 'income',
+          'date': item['start_time'],
+          'title': serviceNames,
+          'subtitle': item['clients'] != null
               ? item['clients']['full_name']
               : 'Cliente?',
-          'service_name': serviceNames,
-          'total_price': appointmentTotal,
-          'payment_method': item['payment_method'],
+          'value': appointmentTotal,
+          'method': item['payment_method'],
         });
       }
 
+      // B. Processar Despesas
+      for (var item in expensesData) {
+        final double val = (item['amount'] is int)
+            ? (item['amount'] as int).toDouble()
+            : (item['amount'] as double);
+        expenseTotal += val;
+
+        // Se o filtro for 'Todos', mostra despesas. Se for filtro de Pagamento (ex: Cartão),
+        // geralmente despesas não entram, a não ser que você adicione coluna de pagamento nas despesas.
+        // Aqui vou mostrar despesas apenas se filtro for 'Todos'.
+        if (_selectedFilter == 'Todos') {
+          combinedList.add({
+            'type': 'expense',
+            'date': item['date'],
+            'title': item['description'] ?? 'Despesa',
+            'subtitle': 'Despesa Operacional',
+            'value': val,
+            'method': 'N/A',
+          });
+        }
+      }
+
+      // Ordenar por data (mais recente primeiro)
+      combinedList.sort(
+        (a, b) =>
+            DateTime.parse(b['date']).compareTo(DateTime.parse(a['date'])),
+      );
+
       if (mounted) {
         setState(() {
-          _totalRevenue = totalMonthRevenue;
-          _records = processedList;
+          _totalRevenue = revenueTotal;
+          _totalExpenses = expenseTotal;
+          _netBalance = revenueTotal - expenseTotal;
+          _records = combinedList;
           _isLoading = false;
         });
       }
@@ -148,27 +205,6 @@ class _FinanceScreenState extends State<FinanceScreen> {
     ).format(DateTime.parse(isoString).toLocal());
   }
 
-  Widget _getPaymentIcon(String? method) {
-    switch (method) {
-      case 'Dinheiro':
-        return const Icon(Icons.money, size: 16, color: Colors.green);
-      case 'Cartão':
-        return const Icon(
-          Icons.credit_card,
-          size: 16,
-          color: AppColors.primary,
-        );
-      case 'Plano Mensal':
-        return const Icon(
-          Icons.calendar_today,
-          size: 16,
-          color: AppColors.accent,
-        );
-      default:
-        return const Icon(Icons.help_outline, size: 16, color: Colors.grey);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final lang = AppLocalizations.of(context)!;
@@ -177,16 +213,30 @@ class _FinanceScreenState extends State<FinanceScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        // --- 1. AVATAR ---
         leading: const Padding(
           padding: EdgeInsets.all(8.0),
           child: UserProfileMenu(),
         ),
-
         title: Text(lang.financeTitle),
         centerTitle: true,
-        // Theme cuida das cores
       ),
+
+      // BOTÃO DE ADICIONAR DESPESA
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'fab_add_expense',
+        onPressed: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AddExpenseScreen()),
+          );
+          if (result == true) {
+            _loadFinanceData(); // Atualiza a lista ao voltar
+          }
+        },
+        backgroundColor: AppColors.error, // Vermelho
+        child: const Icon(Icons.remove, color: Colors.white),
+      ),
+
       body: Column(
         children: [
           // 1. SELETOR DE MÊS
@@ -253,13 +303,12 @@ class _FinanceScreenState extends State<FinanceScreen> {
             ),
           ),
 
-          // 3. PLACAR TOTAL ("Black Card" Premium)
+          // 3. CARD DE RESUMO FINANCEIRO
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             padding: const EdgeInsets.all(24),
             width: double.infinity,
             decoration: BoxDecoration(
-              // Gradiente Chumbo Escuro -> Chumbo Claro
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -276,9 +325,9 @@ class _FinanceScreenState extends State<FinanceScreen> {
             ),
             child: Column(
               children: [
-                Text(
-                  lang.financeTotal.toUpperCase(),
-                  style: const TextStyle(
+                const Text(
+                  "SALDO LÍQUIDO",
+                  style: TextStyle(
                     color: Colors.white54,
                     fontSize: 12,
                     letterSpacing: 1.5,
@@ -289,13 +338,56 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 _isLoading
                     ? const CircularProgressIndicator(color: AppColors.accent)
                     : Text(
-                        _formatCurrency(_totalRevenue),
-                        style: const TextStyle(
-                          color: AppColors.accent, // Dourado!
+                        _formatCurrency(_netBalance),
+                        style: TextStyle(
+                          color: _netBalance >= 0
+                              ? AppColors.accent
+                              : AppColors.error,
                           fontSize: 36,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                const SizedBox(height: 16),
+                // Mini resumo Entrada vs Saída
+                if (!_isLoading)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Column(
+                        children: [
+                          const Icon(
+                            Icons.arrow_upward,
+                            color: Colors.green,
+                            size: 16,
+                          ),
+                          Text(
+                            _formatCurrency(_totalRevenue),
+                            style: const TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(width: 1, height: 20, color: Colors.white24),
+                      Column(
+                        children: [
+                          const Icon(
+                            Icons.arrow_downward,
+                            color: Colors.redAccent,
+                            size: 16,
+                          ),
+                          Text(
+                            _formatCurrency(_totalExpenses),
+                            style: const TextStyle(
+                              color: Colors.redAccent,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -330,12 +422,13 @@ class _FinanceScreenState extends State<FinanceScreen> {
                     separatorBuilder: (_, __) => const Divider(height: 1),
                     itemBuilder: (context, index) {
                       final item = _records[index];
+                      final isExpense = item['type'] == 'expense';
 
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8.0),
                         child: Row(
                           children: [
-                            // Data Box
+                            // Box da Data
                             Container(
                               width: 50,
                               height: 50,
@@ -348,19 +441,17 @@ class _FinanceScreenState extends State<FinanceScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
-                                    _formatDate(
-                                      item['start_time'],
-                                    ).split('/')[0], // Dia
-                                    style: const TextStyle(
+                                    _formatDate(item['date']).split('/')[0],
+                                    style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
-                                      color: AppColors.primary,
+                                      color: isExpense
+                                          ? AppColors.error
+                                          : AppColors.primary,
                                     ),
                                   ),
                                   Text(
-                                    _formatDate(
-                                      item['start_time'],
-                                    ).split('/')[1], // Mês
+                                    _formatDate(item['date']).split('/')[1],
                                     style: TextStyle(
                                       fontSize: 10,
                                       color: Colors.grey[600],
@@ -377,7 +468,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    item['service_name'],
+                                    item['title'],
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 15,
@@ -386,18 +477,12 @@ class _FinanceScreenState extends State<FinanceScreen> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      Text(
-                                        item['client_name'],
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      _getPaymentIcon(item['payment_method']),
-                                    ],
+                                  Text(
+                                    item['subtitle'],
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
                                   ),
                                 ],
                               ),
@@ -405,11 +490,13 @@ class _FinanceScreenState extends State<FinanceScreen> {
 
                             // Valor
                             Text(
-                              _formatCurrency(item['total_price']),
-                              style: const TextStyle(
+                              "${isExpense ? '-' : ''}${_formatCurrency(item['value'])}",
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 15,
-                                color: AppColors.success,
+                                color: isExpense
+                                    ? AppColors.error
+                                    : AppColors.success,
                               ),
                             ),
                           ],

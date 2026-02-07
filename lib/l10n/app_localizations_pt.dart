@@ -224,4 +224,25 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get labelHello => 'Olá';
+
+  @override
+  String get titleNewExpense => 'Nova Despesa';
+
+  @override
+  String get labelReason => 'Motivo / Descrição';
+
+  @override
+  String get labelValue => 'Valor';
+
+  @override
+  String get labelDate => 'Data';
+
+  @override
+  String get btnAddExpense => 'ADICIONAR DESPESA';
+
+  @override
+  String get msgFillAllFields => 'Preencha todos os campos!';
+
+  @override
+  String get msgExpenseAdded => 'Despesa adicionada!';
 }

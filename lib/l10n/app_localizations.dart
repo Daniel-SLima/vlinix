@@ -531,6 +531,48 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Olá'**
   String get labelHello;
+
+  /// No description provided for @titleNewExpense.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nova Despesa'**
+  String get titleNewExpense;
+
+  /// No description provided for @labelReason.
+  ///
+  /// In pt, this message translates to:
+  /// **'Motivo / Descrição'**
+  String get labelReason;
+
+  /// No description provided for @labelValue.
+  ///
+  /// In pt, this message translates to:
+  /// **'Valor'**
+  String get labelValue;
+
+  /// No description provided for @labelDate.
+  ///
+  /// In pt, this message translates to:
+  /// **'Data'**
+  String get labelDate;
+
+  /// No description provided for @btnAddExpense.
+  ///
+  /// In pt, this message translates to:
+  /// **'ADICIONAR DESPESA'**
+  String get btnAddExpense;
+
+  /// No description provided for @msgFillAllFields.
+  ///
+  /// In pt, this message translates to:
+  /// **'Preencha todos os campos!'**
+  String get msgFillAllFields;
+
+  /// No description provided for @msgExpenseAdded.
+  ///
+  /// In pt, this message translates to:
+  /// **'Despesa adicionada!'**
+  String get msgExpenseAdded;
 }
 
 class _AppLocalizationsDelegate
