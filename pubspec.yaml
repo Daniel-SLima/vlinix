@@ -18,6 +18,10 @@ dependencies:
   intl: ^0.20.2
   http: ^1.6.0
   image_picker: ^1.2.1
+  mask_text_input_formatter: ^2.9.0
+  google_sign_in: ^7.2.0
+  googleapis: ^16.0.0
+  extension_google_sign_in_as_googleapis_auth: ^3.0.0
 
 dev_dependencies:
   flutter_test:

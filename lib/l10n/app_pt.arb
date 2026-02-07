@@ -77,5 +77,16 @@
     "labelDate": "Data",
     "btnAddExpense": "ADICIONAR DESPESA",
     "msgFillAllFields": "Preencha todos os campos!",
-    "msgExpenseAdded": "Despesa adicionada!"
+    "msgExpenseAdded": "Despesa adicionada!",
+    "statusInProgress": "Em Andamento",
+    "btnStartService": "Iniciar Serviço",
+    "titleChecklist": "Checklist de Serviços",
+    "btnGoToPayment": "Ir para Pagamento",
+    "msgCompleteAllServices": "Conclua todos os itens para finalizar!",
+    "labelAddress": "Endereço",
+    "statusCancelled": "Cancelado",
+    "btnCancelAppointment": "Cancelar Agendamento",
+    "msgAppointmentCancelled": "Agendamento cancelado!",
+    "btnConfirm": "Confirmar",
+    "msgConfirmCancel": "Tem certeza que deseja cancelar este agendamento?"
 }

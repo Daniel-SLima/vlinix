@@ -77,5 +77,16 @@
     "labelDate": "Date",
     "btnAddExpense": "ADD EXPENSE",
     "msgFillAllFields": "Please fill all fields!",
-    "msgExpenseAdded": "Expense added!"
+    "msgExpenseAdded": "Expense added!",
+    "statusInProgress": "In Progress",
+    "btnStartService": "Start Service",
+    "titleChecklist": "Service Checklist",
+    "btnGoToPayment": "Go to Payment",
+    "msgCompleteAllServices": "Complete all items to finish!",
+    "labelAddress": "Address",
+    "statusCancelled": "Cancelled",
+    "btnCancelAppointment": "Cancel Appointment",
+    "msgAppointmentCancelled": "Appointment cancelled!",
+    "btnConfirm": "Confirm",
+    "msgConfirmCancel": "Are you sure you want to cancel this appointment?"
 }

@@ -1,10 +1,10 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
-import 'package:http/http.dart' as http;
 import 'package:vlinix/l10n/app_localizations.dart';
-import 'package:vlinix/theme/app_colors.dart'; // <--- IMPORTANTE
+import 'package:vlinix/theme/app_colors.dart';
+// IMPORTANTE:
+import 'package:vlinix/services/google_calendar_service.dart';
 
 class AddAppointmentScreen extends StatefulWidget {
   final Map<String, dynamic>? appointmentToEdit;
@@ -16,19 +16,14 @@ class AddAppointmentScreen extends StatefulWidget {
 }
 
 class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
-  // Dados do Banco
   List<Map<String, dynamic>> _clients = [];
   List<Map<String, dynamic>> _allServices = [];
   List<Map<String, dynamic>> _clientVehicles = [];
 
-  // Seleções do Usuário
   int? _selectedClientId;
   int? _selectedVehicleId;
-
-  // Lista de Serviços Selecionados
   List<Map<String, dynamic>> _selectedServices = [];
 
-  // Data e Hora
   late DateTime _selectedDate;
   late TimeOfDay _selectedTime;
 
@@ -37,36 +32,28 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
   @override
   void initState() {
     super.initState();
-
-    // Configura data/hora
     if (widget.appointmentToEdit != null) {
       final startTime = DateTime.parse(
         widget.appointmentToEdit!['start_time'],
       ).toLocal();
       _selectedDate = startTime;
       _selectedTime = TimeOfDay.fromDateTime(startTime);
-
       _selectedClientId = widget.appointmentToEdit!['client_id'];
       _selectedVehicleId = widget.appointmentToEdit!['vehicle_id'];
     } else {
       _selectedDate = DateTime.now();
       _selectedTime = TimeOfDay.now();
     }
-
     _fetchInitialData();
   }
 
   Future<void> _fetchInitialData() async {
     final supabase = Supabase.instance.client;
-
     try {
-      // 1. Clientes (Só quem tem veículo)
       final clientsData = await supabase
           .from('clients')
           .select('*, vehicles!inner(id)')
           .order('full_name');
-
-      // 2. Serviços Disponíveis
       final servicesData = await supabase
           .from('services')
           .select()
@@ -82,9 +69,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
           _fetchVehicles(_selectedClientId!);
         }
 
-        // Lógica de Edição (Carregar serviços existentes)
         if (widget.appointmentToEdit != null) {
-          // A. Busca na tabela nova
           final itemsData = await supabase
               .from('appointment_services')
               .select('service_id, services(*)')
@@ -96,19 +81,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                 itemsData.map((item) => item['services']),
               );
             });
-          }
-          // B. Fallback (Legado)
-          else if (widget.appointmentToEdit!['service_id'] != null) {
-            final legacyId = widget.appointmentToEdit!['service_id'];
-            final legacyService = _allServices.firstWhere(
-              (s) => s['id'] == legacyId,
-              orElse: () => {},
-            );
-            if (legacyService.isNotEmpty) {
-              setState(() {
-                _selectedServices.add(legacyService);
-              });
-            }
           }
         }
       }
@@ -126,7 +98,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
     if (mounted) {
       setState(() {
         _clientVehicles = List<Map<String, dynamic>>.from(vehiclesData);
-
         if (_clientVehicles.length == 1) {
           _selectedVehicleId = _clientVehicles.first['id'];
         } else {
@@ -134,16 +105,13 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
             final exists = _clientVehicles.any(
               (v) => v['id'] == _selectedVehicleId,
             );
-            if (!exists) {
-              _selectedVehicleId = null;
-            }
+            if (!exists) _selectedVehicleId = null;
           }
         }
       });
     }
   }
 
-  // --- DIALOG RESPONSIVO E TEMATIZADO ---
   void _showMultiSelectServices() {
     final isLargeScreen = MediaQuery.of(context).size.width > 600;
     final lang = AppLocalizations.of(context)!;
@@ -168,18 +136,15 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Título
                     Text(
                       lang.labelSelectServices,
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.primary, // Chumbo
+                        color: AppColors.primary,
                       ),
                     ),
                     const SizedBox(height: 16),
-
-                    // Lista Scrollável
                     Flexible(
                       child: ListView.separated(
                         shrinkWrap: true,
@@ -190,7 +155,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                           final isSelected = _selectedServices.any(
                             (s) => s['id'] == service['id'],
                           );
-
                           return CheckboxListTile(
                             contentPadding: EdgeInsets.zero,
                             title: Text(
@@ -203,7 +167,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                               'R\$ ${service['price']}',
                               style: TextStyle(color: Colors.grey[600]),
                             ),
-                            activeColor: AppColors.accent, // Checkbox Dourado!
+                            activeColor: AppColors.accent,
                             value: isSelected,
                             onChanged: (bool? value) {
                               setStateDialog(() {
@@ -215,24 +179,18 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                                   );
                                 }
                               });
-                              this.setState(
-                                () {},
-                              ); // Atualiza tela de trás (Total)
+                              this.setState(() {});
                             },
                           );
                         },
                       ),
                     ),
-
                     const SizedBox(height: 24),
-
-                    // Botão Fechar (Chumbo)
                     SizedBox(
                       width: double.infinity,
                       height: 45,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          // Theme já é Chumbo, mas forçamos o shape
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30),
                           ),
@@ -261,57 +219,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
     );
   }
 
-  // --- GOOGLE CALENDAR ---
-  Future<String?> _getSessionToken() async {
-    final session = Supabase.instance.client.auth.currentSession;
-    return session?.providerToken;
-  }
-
-  Future<String?> _createGoogleEvent({
-    required String title,
-    required String description,
-    required DateTime startTime,
-    required DateTime endTime,
-  }) async {
-    final token = await _getSessionToken();
-    if (token == null) return null;
-
-    final event = {
-      'summary': title,
-      'description': description,
-      'start': {
-        'dateTime': startTime.toIso8601String(),
-        'timeZone': 'America/Sao_Paulo',
-      },
-      'end': {
-        'dateTime': endTime.toIso8601String(),
-        'timeZone': 'America/Sao_Paulo',
-      },
-    };
-
-    try {
-      final response = await http.post(
-        Uri.parse(
-          'https://www.googleapis.com/calendar/v3/calendars/primary/events',
-        ),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(event),
-      );
-
-      if (response.statusCode == 200) {
-        final json = jsonDecode(response.body);
-        return json['id'];
-      }
-    } catch (e) {
-      debugPrint('Erro Google: $e');
-    }
-    return null;
-  }
-
-  // --- SALVAR ---
   Future<void> _save() async {
     final lang = AppLocalizations.of(context)!;
 
@@ -334,7 +241,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
       final supabase = Supabase.instance.client;
       final userId = supabase.auth.currentUser!.id;
 
-      // 1. Datas
       final finalDateTime = DateTime(
         _selectedDate.year,
         _selectedDate.month,
@@ -344,7 +250,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
       );
       final endTime = finalDateTime.add(const Duration(hours: 1));
 
-      // 2. Textos
       final clientName = _clients.firstWhere(
         (c) => c['id'] == _selectedClientId,
       )['full_name'];
@@ -353,10 +258,10 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
       final googleTitle = 'Vlinix: $servicesNames - $clientName';
       final googleDesc = 'Serviços: $servicesNames\nTotal: R\$ $_totalPrice';
 
-      // 3. Google Calendar
+      // --- USANDO O SERVIÇO NOVO ---
       String? googleEventId;
       if (widget.appointmentToEdit == null) {
-        googleEventId = await _createGoogleEvent(
+        googleEventId = await GoogleCalendarService.instance.insertEvent(
           title: googleTitle,
           description: googleDesc,
           startTime: finalDateTime,
@@ -364,7 +269,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
         );
       }
 
-      // 4. Salvar Pai
       int appointmentId;
 
       if (widget.appointmentToEdit == null) {
@@ -393,14 +297,12 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
             })
             .eq('id', appointmentId);
 
-        // Remove vínculos antigos
         await supabase
             .from('appointment_services')
             .delete()
             .eq('appointment_id', appointmentId);
       }
 
-      // 5. Salvar Filhos
       final List<Map<String, dynamic>> servicesToInsert = _selectedServices.map(
         (service) {
           return {
@@ -446,7 +348,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
       appBar: AppBar(
         title: Text(isEditing ? lang.titleEditClient : lang.btnNew),
         centerTitle: true,
-        // Theme cuida das cores
       ),
       backgroundColor: AppColors.background,
       body: _clients.isEmpty || _allServices.isEmpty
@@ -476,16 +377,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (isLargeScreen) ...[
-                          const Icon(
-                            Icons.calendar_month,
-                            size: 60,
-                            color: AppColors.primary,
-                          ),
-                          const SizedBox(height: 20),
-                        ],
-
-                        // Cliente
                         DropdownButtonFormField<int>(
                           value: _selectedClientId,
                           decoration: InputDecoration(
@@ -511,8 +402,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                           },
                         ),
                         const SizedBox(height: 16),
-
-                        // Veículo
                         DropdownButtonFormField<int>(
                           value: _selectedVehicleId,
                           decoration: InputDecoration(
@@ -536,15 +425,12 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                               : null,
                         ),
                         const SizedBox(height: 16),
-
-                        // --- CAMPO DE SERVIÇOS (CLICÁVEL) ---
                         InkWell(
                           onTap: _showMultiSelectServices,
                           child: InputDecorator(
                             decoration: InputDecoration(
                               labelText: lang.labelService,
                               suffixIcon: const Icon(Icons.arrow_drop_down),
-                              // Mantém o estilo do Theme
                             ),
                             child: _selectedServices.isEmpty
                                 ? Text(
@@ -556,7 +442,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                                     children: _selectedServices.map((s) {
                                       return Chip(
                                         label: Text(s['name']),
-                                        // Chip Dourado suave
                                         backgroundColor: AppColors.accent
                                             .withOpacity(0.1),
                                         labelStyle: const TextStyle(
@@ -577,8 +462,6 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                                   ),
                           ),
                         ),
-
-                        // Total
                         if (_selectedServices.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(top: 8.0),
@@ -594,10 +477,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                               ),
                             ),
                           ),
-
                         const SizedBox(height: 24),
-
-                        // Data e Hora
                         Row(
                           children: [
                             Expanded(
@@ -626,13 +506,11 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                                     initialDate: _selectedDate,
                                     firstDate: DateTime(2020),
                                     lastDate: DateTime(2030),
-                                    // Customiza cor do calendário se quiser
                                     builder: (context, child) {
                                       return Theme(
                                         data: Theme.of(context).copyWith(
                                           colorScheme: const ColorScheme.light(
-                                            primary:
-                                                AppColors.primary, // Chumbo
+                                            primary: AppColors.primary,
                                             onPrimary: Colors.white,
                                             onSurface: AppColors.primary,
                                           ),
@@ -689,10 +567,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                             ),
                           ],
                         ),
-
                         const SizedBox(height: 32),
-
-                        // Botão Salvar
                         SizedBox(
                           width: double.infinity,
                           height: 50,

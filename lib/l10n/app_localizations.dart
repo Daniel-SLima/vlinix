@@ -573,6 +573,72 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Despesa adicionada!'**
   String get msgExpenseAdded;
+
+  /// No description provided for @statusInProgress.
+  ///
+  /// In pt, this message translates to:
+  /// **'Em Andamento'**
+  String get statusInProgress;
+
+  /// No description provided for @btnStartService.
+  ///
+  /// In pt, this message translates to:
+  /// **'Iniciar Serviço'**
+  String get btnStartService;
+
+  /// No description provided for @titleChecklist.
+  ///
+  /// In pt, this message translates to:
+  /// **'Checklist de Serviços'**
+  String get titleChecklist;
+
+  /// No description provided for @btnGoToPayment.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ir para Pagamento'**
+  String get btnGoToPayment;
+
+  /// No description provided for @msgCompleteAllServices.
+  ///
+  /// In pt, this message translates to:
+  /// **'Conclua todos os itens para finalizar!'**
+  String get msgCompleteAllServices;
+
+  /// No description provided for @labelAddress.
+  ///
+  /// In pt, this message translates to:
+  /// **'Endereço'**
+  String get labelAddress;
+
+  /// No description provided for @statusCancelled.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cancelado'**
+  String get statusCancelled;
+
+  /// No description provided for @btnCancelAppointment.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cancelar Agendamento'**
+  String get btnCancelAppointment;
+
+  /// No description provided for @msgAppointmentCancelled.
+  ///
+  /// In pt, this message translates to:
+  /// **'Agendamento cancelado!'**
+  String get msgAppointmentCancelled;
+
+  /// No description provided for @btnConfirm.
+  ///
+  /// In pt, this message translates to:
+  /// **'Confirmar'**
+  String get btnConfirm;
+
+  /// No description provided for @msgConfirmCancel.
+  ///
+  /// In pt, this message translates to:
+  /// **'Tem certeza que deseja cancelar este agendamento?'**
+  String get msgConfirmCancel;
 }
 
 class _AppLocalizationsDelegate

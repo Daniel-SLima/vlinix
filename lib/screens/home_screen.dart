@@ -5,6 +5,7 @@ import 'package:vlinix/main.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
 import 'package:vlinix/theme/app_colors.dart';
 import 'package:vlinix/widgets/user_profile_menu.dart';
+import 'package:vlinix/services/google_calendar_service.dart'; // <--- SERVIÇO CORRIGIDO
 
 import 'add_client_screen.dart';
 import 'add_vehicle_screen.dart';
@@ -54,10 +55,9 @@ class _HomeScreenState extends State<HomeScreen> {
         clients(full_name),
         vehicles(model, plate),
         services(name),
-        appointment_services(price, services(name))
+        appointment_services(id, price, completed, services(name))
       ''';
 
-      // 2. Busca HOJE
       final todayData = await supabase
           .from('appointments')
           .select(selectQuery)
@@ -65,7 +65,6 @@ class _HomeScreenState extends State<HomeScreen> {
           .lte('start_time', endOfDay)
           .order('start_time', ascending: true);
 
-      // 3. Busca PRÓXIMOS (Sem limite, para ver todos)
       final upcomingData = await supabase
           .from('appointments')
           .select(selectQuery)
@@ -86,37 +85,125 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // --- ATUALIZAÇÃO DO STATUS (COM GOOGLE CALENDAR) ---
   Future<void> _updateStatus(
     int id,
     String newStatus, {
     String? paymentMethod,
   }) async {
+    final supabase = Supabase.instance.client;
+    String feedbackMsg = '';
+
     try {
+      // 1. LÓGICA DO GOOGLE CALENDAR
+      // Busca dados atuais do agendamento
+      final currentData = await supabase
+          .from('appointments')
+          .select(
+            '*, clients(full_name), appointment_services(price, services(name))',
+          )
+          .eq('id', id)
+          .single();
+
+      final String? currentGoogleId = currentData['google_event_id'];
+      String? newGoogleEventId; // Vai guardar o ID se criarmos um novo
+
+      // A. SE FOR CANCELAR -> APAGA DO GOOGLE
+      if (newStatus == 'cancelado') {
+        if (currentGoogleId != null && currentGoogleId.isNotEmpty) {
+          await GoogleCalendarService.instance.deleteEvent(currentGoogleId);
+          feedbackMsg = 'Removido da Agenda Google 📅';
+        }
+      }
+      // B. SE FOR REATIVAR (De Cancelado/Concluído -> Pendente) -> CRIA NO GOOGLE
+      else if (newStatus == 'pendente') {
+        // Prepara dados para o evento
+        final clientName = currentData['clients']['full_name'];
+        final startTime = DateTime.parse(currentData['start_time']);
+        final endTime = startTime.add(
+          const Duration(hours: 1),
+        ); // Duração padrão 1h
+
+        // Monta título e descrição
+        final items = currentData['appointment_services'] as List;
+        final servicesNames = items
+            .map((i) => i['services']['name'])
+            .join(', ');
+        final totalPrice = items.fold(0.0, (sum, i) => sum + (i['price'] ?? 0));
+
+        final title = 'Vlinix: $servicesNames - $clientName';
+        final desc =
+            'Reativado - Serviços: $servicesNames\nTotal: R\$ $totalPrice';
+
+        // Cria no Google
+        newGoogleEventId = await GoogleCalendarService.instance.insertEvent(
+          title: title,
+          description: desc,
+          startTime: startTime,
+          endTime: endTime,
+        );
+
+        if (newGoogleEventId != null) {
+          feedbackMsg = 'Readicionado à Agenda Google 📅';
+        }
+      }
+
+      // 2. ATUALIZAÇÃO NO SUPABASE
       final Map<String, dynamic> updateData = {'status': newStatus};
+
       if (newStatus == 'concluido') {
         updateData['payment_method'] = paymentMethod;
       } else {
         updateData['payment_method'] = null;
       }
 
-      await Supabase.instance.client
-          .from('appointments')
-          .update(updateData)
-          .eq('id', id);
+      // Se geramos um novo ID do Google (na reativação), salvamos ele
+      if (newGoogleEventId != null) {
+        updateData['google_event_id'] = newGoogleEventId;
+      }
+      // Se cancelamos, limpamos o ID para não tentar apagar de novo depois
+      else if (newStatus == 'cancelado') {
+        updateData['google_event_id'] = null;
+      }
 
+      await supabase.from('appointments').update(updateData).eq('id', id);
       await _loadDashboardData();
 
+      // 3. FEEDBACK VISUAL
       if (mounted) {
         final lang = AppLocalizations.of(context)!;
-        bool isCompleted = newStatus == 'concluido';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isCompleted ? '${lang.statusDone} ✅' : '${lang.statusPending} 🟠',
+        String msg = '';
+        Color color = Colors.blue;
+
+        if (newStatus == 'concluido') {
+          msg = '${lang.statusDone} ✅';
+          color = AppColors.success;
+        } else if (newStatus == 'em_andamento') {
+          msg = '${lang.statusInProgress} 🚀';
+          color = Colors.blue;
+        } else if (newStatus == 'cancelado') {
+          msg = '${lang.msgAppointmentCancelled} 🚫';
+          color = Colors.grey;
+        } else {
+          msg = '${lang.statusPending} 🟠'; // Reativado
+          color = Colors.orange;
+        }
+
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+        // Se tiver mensagem do Google, mostra ela também
+        if (feedbackMsg.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$msg\n$feedbackMsg'),
+              backgroundColor: color,
             ),
-            backgroundColor: isCompleted ? AppColors.success : Colors.orange,
-          ),
-        );
+          );
+        } else {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -125,6 +212,93 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     }
+  }
+
+  Future<void> _toggleServiceCompletion(
+    int appointmentServiceId,
+    bool currentStatus,
+  ) async {
+    try {
+      await Supabase.instance.client
+          .from('appointment_services')
+          .update({'completed': !currentStatus})
+          .eq('id', appointmentServiceId);
+      await _loadDashboardData();
+    } catch (e) {
+      debugPrint('Erro ao atualizar serviço: $e');
+    }
+  }
+
+  void _showChecklistDialog(Map<String, dynamic> apt) {
+    final lang = AppLocalizations.of(context)!;
+    final List items = apt['appointment_services'] ?? [];
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            bool allCompleted = items.every((i) => i['completed'] == true);
+            return AlertDialog(
+              title: Text(lang.titleChecklist),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    final item = items[index];
+                    final bool isChecked = item['completed'] ?? false;
+                    return CheckboxListTile(
+                      title: Text(item['services']['name']),
+                      subtitle: Text("R\$ ${item['price']}"),
+                      value: isChecked,
+                      activeColor: AppColors.success,
+                      onChanged: (val) async {
+                        await _toggleServiceCompletion(item['id'], isChecked);
+                        setStateDialog(() {
+                          item['completed'] = val;
+                        });
+                        _loadDashboardData();
+                      },
+                    );
+                  },
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(
+                    lang.btnCancel,
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: allCompleted
+                        ? AppColors.success
+                        : Colors.grey,
+                  ),
+                  onPressed: allCompleted
+                      ? () {
+                          Navigator.pop(ctx);
+                          _showPaymentDialog(apt['id']);
+                        }
+                      : () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(lang.msgCompleteAllServices),
+                            ),
+                          );
+                        },
+                  child: Text(lang.btnGoToPayment),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   void _showPaymentDialog(int appointmentId) {
@@ -200,8 +374,6 @@ class _HomeScreenState extends State<HomeScreen> {
       totalPrice = items.fold(0.0, (sum, i) => sum + (i['price'] ?? 0.0));
     } else if (apt['services'] != null) {
       serviceNames = apt['services']['name'];
-    } else {
-      serviceNames = 'Serviço não identificado';
     }
 
     return {
@@ -213,7 +385,9 @@ class _HomeScreenState extends State<HomeScreen> {
           : 'Carro?',
       'serviceNames': serviceNames,
       'totalPrice': totalPrice,
+      'status': apt['status'],
       'isCompleted': apt['status'] == 'concluido',
+      'isCancelled': apt['status'] == 'cancelado',
     };
   }
 
@@ -273,7 +447,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           Expanded(
                             child: Text(
-                              // CORRIGIDO: Removemos o ?? 'Olá' pois lang.labelHello é obrigatório
                               "${lang.labelHello}, $displayName",
                               style: const TextStyle(
                                 fontSize: 24,
@@ -438,6 +611,9 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     }
+
+    final lang = AppLocalizations.of(context)!;
+
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -445,6 +621,62 @@ class _HomeScreenState extends State<HomeScreen> {
       itemBuilder: (context, index) {
         final apt = list[index];
         final data = _processAppointmentData(apt);
+        final String status = data['status'] ?? 'pendente';
+        final bool isCancelled = data['isCancelled'];
+
+        IconData actionIcon;
+        Color actionColor;
+        String tooltip;
+        VoidCallback? onPressed;
+
+        if (isCancelled) {
+          actionIcon = Icons.refresh;
+          actionColor = Colors.grey;
+          tooltip = "Reativar";
+          onPressed = () {
+            showDialog(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Reativar Agendamento?'),
+                content: const Text(
+                  'O agendamento voltará para o status Pendente e será readicionado à agenda.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: Text(lang.btnCancel),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                    ),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _updateStatus(apt['id'], 'pendente'); // REATIVAR
+                    },
+                    child: const Text('Reativar'),
+                  ),
+                ],
+              ),
+            );
+          };
+        } else if (status == 'pendente') {
+          actionIcon = Icons.play_arrow_rounded;
+          actionColor = Colors.orange;
+          tooltip = lang.btnStartService;
+          onPressed = () => _updateStatus(apt['id'], 'em_andamento');
+        } else if (status == 'em_andamento') {
+          actionIcon = Icons.playlist_add_check_rounded;
+          actionColor = Colors.blue;
+          tooltip = lang.titleChecklist;
+          onPressed = () => _showChecklistDialog(apt);
+        } else {
+          actionIcon = Icons.check_circle;
+          actionColor = AppColors.success;
+          tooltip = 'Detalhes';
+          onPressed = () {};
+        }
+
         return Card(
           elevation: 0,
           color: Colors.white,
@@ -461,10 +693,11 @@ class _HomeScreenState extends State<HomeScreen> {
             leading: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                // CORREÇÃO: Usando withValues para evitar deprecation
-                color: isToday
-                    ? AppColors.accent.withValues(alpha: 0.15)
-                    : Colors.grey.shade100,
+                color: isCancelled
+                    ? Colors.grey.shade200
+                    : (isToday
+                          ? AppColors.accent.withValues(alpha: 0.15)
+                          : Colors.grey.shade100),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
@@ -475,7 +708,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     _formatTime(apt['start_time']),
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: isToday ? AppColors.primary : Colors.grey[700],
+                      color: isCancelled
+                          ? Colors.grey
+                          : (isToday ? AppColors.primary : Colors.grey[700]),
+                      decoration: isCancelled
+                          ? TextDecoration.lineThrough
+                          : null,
                     ),
                   ),
                   if (!isToday)
@@ -490,7 +728,12 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             title: Text(
               data['clientName'],
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                decoration: isCancelled ? TextDecoration.lineThrough : null,
+                color: isCancelled ? Colors.grey : Colors.black,
+              ),
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -498,15 +741,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.directions_car,
                       size: 14,
-                      color: Colors.grey,
+                      color: isCancelled ? Colors.grey : Colors.grey[600],
                     ),
                     const SizedBox(width: 4),
                     Text(
                       "${data['vehicleInfo']}",
-                      style: const TextStyle(color: Colors.grey),
+                      style: TextStyle(
+                        color: isCancelled ? Colors.grey : Colors.grey[800],
+                      ),
                     ),
                   ],
                 ),
@@ -522,56 +767,74 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
                       "R\$ ${data['totalPrice'].toStringAsFixed(2)}",
-                      style: const TextStyle(
-                        color: AppColors.success,
+                      style: TextStyle(
+                        color: isCancelled ? Colors.grey : AppColors.success,
                         fontWeight: FontWeight.w800,
                         fontSize: 12,
+                        decoration: isCancelled
+                            ? TextDecoration.lineThrough
+                            : null,
                       ),
                     ),
                   ),
               ],
             ),
-            trailing: IconButton(
-              icon: Icon(
-                data['isCompleted']
-                    ? Icons.check_circle
-                    : Icons.pending_outlined,
-                color: data['isCompleted'] ? AppColors.success : Colors.orange,
-                size: 28,
-              ),
-              onPressed: () {
-                final lang = AppLocalizations.of(context)!;
-                if (data['isCompleted']) {
-                  showDialog(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: Text('${lang.statusPending}?'),
-                      content: const Text('Deseja voltar para pendente?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: Text(
-                            lang.btnCancel,
-                            style: const TextStyle(color: Colors.grey),
+
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Icon(actionIcon, color: actionColor, size: 28),
+                  tooltip: tooltip,
+                  onPressed: onPressed,
+                ),
+                if (!data['isCompleted'] && !isCancelled)
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, color: Colors.grey),
+                    onSelected: (value) {
+                      if (value == 'cancel') {
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: Text(lang.btnCancelAppointment),
+                            content: Text(lang.msgConfirmCancel),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                child: Text(lang.btnCancel),
+                              ),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.error,
+                                ),
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  _updateStatus(apt['id'], 'cancelado');
+                                },
+                                child: Text(lang.btnConfirm),
+                              ),
+                            ],
                           ),
+                        );
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'cancel',
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.cancel_presentation,
+                              color: AppColors.error,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(lang.btnCancelAppointment),
+                          ],
                         ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.orange,
-                          ),
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            _updateStatus(apt['id'], 'pendente');
-                          },
-                          child: Text(lang.statusPending),
-                        ),
-                      ],
-                    ),
-                  );
-                } else {
-                  _showPaymentDialog(apt['id']);
-                }
-              },
+                      ),
+                    ],
+                  ),
+              ],
             ),
           ),
         );

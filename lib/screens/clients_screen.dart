@@ -42,8 +42,8 @@ class _ClientsScreenState extends State<ClientsScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Excluir Cliente?'),
-        content: const Text('Essa ação não pode ser desfeita.'),
+        title: Text(lang.dialogDeleteTitle),
+        content: Text(lang.dialogDeleteContent),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -67,8 +67,8 @@ class _ClientsScreenState extends State<ClientsScreen> {
       await Supabase.instance.client.from('clients').delete().eq('id', id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cliente excluído com sucesso.'),
+          SnackBar(
+            content: Text(lang.msgClientDeleted),
             backgroundColor: AppColors.success,
           ),
         );
@@ -76,8 +76,8 @@ class _ClientsScreenState extends State<ClientsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Erro ao excluir.'),
+          SnackBar(
+            content: Text(lang.msgErrorDeleteClient),
             backgroundColor: AppColors.error,
           ),
         );
@@ -101,15 +101,15 @@ class _ClientsScreenState extends State<ClientsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        title: Text(lang.titleManageClients),
+        centerTitle: true,
         leading: const Padding(
           padding: EdgeInsets.all(8.0),
           child: UserProfileMenu(),
         ),
-        title: Text(lang.titleManageClients),
-        centerTitle: true,
       ),
       floatingActionButton: FloatingActionButton(
-        heroTag: 'fab_clients', // Hero Tag Única
+        heroTag: 'fab_clients',
         onPressed: () => _navigateToAddEdit(),
         backgroundColor: AppColors.accent,
         foregroundColor: Colors.white,
@@ -123,8 +123,8 @@ class _ClientsScreenState extends State<ClientsScreen> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                labelText: lang.hintSearchClient, // Traduzido
-                hintText: lang.hintSearchGeneric, // Traduzido
+                labelText: lang.hintSearchClient,
+                hintText: lang.hintSearchGeneric,
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
                 fillColor: AppColors.background,
@@ -151,12 +151,10 @@ class _ClientsScreenState extends State<ClientsScreen> {
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: _clientsStream,
               builder: (context, snapshot) {
-                if (snapshot.hasError) {
+                if (snapshot.hasError)
                   return Center(child: Text('Erro: ${snapshot.error}'));
-                }
-                if (!snapshot.hasData) {
+                if (!snapshot.hasData)
                   return const Center(child: CircularProgressIndicator());
-                }
 
                 final allClients = snapshot.data!;
                 final clients = allClients.where((client) {
@@ -255,11 +253,24 @@ class _ClientsScreenState extends State<ClientsScreen> {
                                   ),
                                 ],
                               ),
-                            if (client['email'] != null &&
-                                client['email'] != '')
-                              Text(
-                                client['email'],
-                                style: const TextStyle(fontSize: 12),
+                            if (client['address'] != null &&
+                                client['address'] != '') // <--- EXIBE ENDEREÇO
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.location_on,
+                                    size: 12,
+                                    color: Colors.grey,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      client['address'],
+                                      style: const TextStyle(fontSize: 12),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
                               ),
                           ],
                         ),

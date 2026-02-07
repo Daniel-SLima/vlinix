@@ -77,5 +77,16 @@
     "labelDate": "Fecha",
     "btnAddExpense": "AÑADIR GASTO",
     "msgFillAllFields": "¡Complete todos los campos!",
-    "msgExpenseAdded": "¡Gasto añadido!"
+    "msgExpenseAdded": "¡Gasto añadido!",
+    "statusInProgress": "En Progreso",
+    "btnStartService": "Iniciar Servicio",
+    "titleChecklist": "Lista de Verificación",
+    "btnGoToPayment": "Ir al Pago",
+    "msgCompleteAllServices": "¡Complete todos los ítems para finalizar!",
+    "labelAddress": "Dirección",
+    "statusCancelled": "Cancelado",
+    "btnCancelAppointment": "Cancelar Cita",
+    "msgAppointmentCancelled": "¡Cita cancelada!",
+    "btnConfirm": "Confirmar",
+    "msgConfirmCancel": "¿Está seguro de que desea cancelar esta cita?"
 }

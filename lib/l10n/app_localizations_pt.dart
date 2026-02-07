@@ -245,4 +245,38 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get msgExpenseAdded => 'Despesa adicionada!';
+
+  @override
+  String get statusInProgress => 'Em Andamento';
+
+  @override
+  String get btnStartService => 'Iniciar Serviço';
+
+  @override
+  String get titleChecklist => 'Checklist de Serviços';
+
+  @override
+  String get btnGoToPayment => 'Ir para Pagamento';
+
+  @override
+  String get msgCompleteAllServices => 'Conclua todos os itens para finalizar!';
+
+  @override
+  String get labelAddress => 'Endereço';
+
+  @override
+  String get statusCancelled => 'Cancelado';
+
+  @override
+  String get btnCancelAppointment => 'Cancelar Agendamento';
+
+  @override
+  String get msgAppointmentCancelled => 'Agendamento cancelado!';
+
+  @override
+  String get btnConfirm => 'Confirmar';
+
+  @override
+  String get msgConfirmCancel =>
+      'Tem certeza que deseja cancelar este agendamento?';
 }
