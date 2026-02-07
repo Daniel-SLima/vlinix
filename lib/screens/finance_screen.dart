@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
 import 'package:vlinix/theme/app_colors.dart';
 import 'package:vlinix/widgets/user_profile_menu.dart';
-import 'package:vlinix/screens/add_expense_screen.dart'; // <--- Importe a tela nova
+import 'package:vlinix/screens/add_expense_screen.dart';
 
 class FinanceScreen extends StatefulWidget {
   const FinanceScreen({super.key});
@@ -21,7 +21,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
   double _totalExpenses = 0.0;
   double _netBalance = 0.0;
 
-  // Lista unificada (Receitas + Despesas)
+  // Lista unificada
   List<Map<String, dynamic>> _records = [];
 
   DateTime _selectedDate = DateTime.now();
@@ -44,6 +44,37 @@ class _FinanceScreenState extends State<FinanceScreen> {
     });
   }
 
+  // --- NOVO: SELETOR DE MÊS/ANO DIRETO ---
+  Future<void> _pickMonthYear() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      initialDatePickerMode:
+          DatePickerMode.year, // Começa escolhendo o ano para agilizar
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              onSurface: AppColors.primary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedDate = picked;
+        _loadFinanceData();
+      });
+    }
+  }
+
   void _changeFilter(String filter) {
     setState(() {
       _selectedFilter = filter;
@@ -59,7 +90,6 @@ class _FinanceScreenState extends State<FinanceScreen> {
       _selectedDate.month,
       1,
     ).toUtc().toIso8601String();
-
     final endOfMonth = DateTime(
       _selectedDate.year,
       _selectedDate.month + 1,
@@ -72,9 +102,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
     final supabase = Supabase.instance.client;
 
     try {
-      // ---------------------------------------------
-      // 1. BUSCAR RECEITAS (Appointments)
-      // ---------------------------------------------
+      // 1. BUSCAR RECEITAS
       var queryRevenue = supabase
           .from('appointments')
           .select('''
@@ -94,24 +122,23 @@ class _FinanceScreenState extends State<FinanceScreen> {
 
       final revenueData = await queryRevenue;
 
-      // ---------------------------------------------
-      // 2. BUSCAR DESPESAS (Expenses)
-      // ---------------------------------------------
-      // O RLS no Supabase garante que só vem dados do usuário logado
-      final expensesData = await supabase
-          .from('expenses')
-          .select()
-          .gte('date', startOfMonth)
-          .lte('date', endOfMonth);
+      // 2. BUSCAR DESPESAS (Apenas se o filtro for 'Todos')
+      // Se o usuário quer ver só "Cartão", não faz sentido mostrar despesas (que são saídas gerais)
+      List<dynamic> expensesData = [];
+      if (_selectedFilter == 'Todos') {
+        expensesData = await supabase
+            .from('expenses')
+            .select()
+            .gte('date', startOfMonth)
+            .lte('date', endOfMonth);
+      }
 
-      // ---------------------------------------------
-      // 3. PROCESSAMENTO E UNIÃO
-      // ---------------------------------------------
+      // 3. PROCESSAMENTO
       double revenueTotal = 0.0;
       double expenseTotal = 0.0;
       final List<Map<String, dynamic>> combinedList = [];
 
-      // A. Processar Receitas
+      // A. Receitas
       for (var item in revenueData) {
         double appointmentTotal = 0.0;
         String serviceNames = '';
@@ -130,8 +157,6 @@ class _FinanceScreenState extends State<FinanceScreen> {
               ? (s['price'] as int).toDouble()
               : (s['price'] as double? ?? 0.0);
           serviceNames = s['name'];
-        } else {
-          serviceNames = 'Serviço desconhecido';
         }
 
         revenueTotal += appointmentTotal;
@@ -148,29 +173,23 @@ class _FinanceScreenState extends State<FinanceScreen> {
         });
       }
 
-      // B. Processar Despesas
+      // B. Despesas (Só processa se tiver buscado)
       for (var item in expensesData) {
         final double val = (item['amount'] is int)
             ? (item['amount'] as int).toDouble()
             : (item['amount'] as double);
         expenseTotal += val;
 
-        // Se o filtro for 'Todos', mostra despesas. Se for filtro de Pagamento (ex: Cartão),
-        // geralmente despesas não entram, a não ser que você adicione coluna de pagamento nas despesas.
-        // Aqui vou mostrar despesas apenas se filtro for 'Todos'.
-        if (_selectedFilter == 'Todos') {
-          combinedList.add({
-            'type': 'expense',
-            'date': item['date'],
-            'title': item['description'] ?? 'Despesa',
-            'subtitle': 'Despesa Operacional',
-            'value': val,
-            'method': 'N/A',
-          });
-        }
+        combinedList.add({
+          'type': 'expense',
+          'date': item['date'],
+          'title': item['description'] ?? 'Despesa',
+          'subtitle': 'Saída',
+          'value': val,
+          'method': 'N/A',
+        });
       }
 
-      // Ordenar por data (mais recente primeiro)
       combinedList.sort(
         (a, b) =>
             DateTime.parse(b['date']).compareTo(DateTime.parse(a['date'])),
@@ -180,7 +199,10 @@ class _FinanceScreenState extends State<FinanceScreen> {
         setState(() {
           _totalRevenue = revenueTotal;
           _totalExpenses = expenseTotal;
-          _netBalance = revenueTotal - expenseTotal;
+          // Se não estiver mostrando despesas (filtro ativo), o saldo líquido é só a receita filtrada
+          _netBalance = _selectedFilter == 'Todos'
+              ? (revenueTotal - expenseTotal)
+              : revenueTotal;
           _records = combinedList;
           _isLoading = false;
         });
@@ -221,25 +243,27 @@ class _FinanceScreenState extends State<FinanceScreen> {
         centerTitle: true,
       ),
 
-      // BOTÃO DE ADICIONAR DESPESA
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'fab_add_expense',
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const AddExpenseScreen()),
-          );
-          if (result == true) {
-            _loadFinanceData(); // Atualiza a lista ao voltar
-          }
-        },
-        backgroundColor: AppColors.error, // Vermelho
-        child: const Icon(Icons.remove, color: Colors.white),
-      ),
+      // Botão Add Despesa (Só aparece se estiver vendo 'Todos')
+      floatingActionButton: _selectedFilter == 'Todos'
+          ? FloatingActionButton(
+              heroTag: 'fab_expenses',
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AddExpenseScreen(),
+                  ),
+                );
+                if (result == true) _loadFinanceData();
+              },
+              backgroundColor: AppColors.error,
+              child: const Icon(Icons.remove, color: Colors.white),
+            )
+          : null, // Esconde se estiver filtrando por pagamento
 
       body: Column(
         children: [
-          // 1. SELETOR DE MÊS
+          // 1. SELETOR DE MÊS (CLICÁVEL AGORA)
           Container(
             padding: const EdgeInsets.symmetric(vertical: 10),
             color: Colors.white,
@@ -253,25 +277,40 @@ class _FinanceScreenState extends State<FinanceScreen> {
                   ),
                   onPressed: () => _changeMonth(-1),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    DateFormat(
-                      'MMMM yyyy',
-                      locale,
-                    ).format(_selectedDate).toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                      letterSpacing: 1,
+                // Transformei em InkWell para ser clicável
+                InkWell(
+                  onTap: _pickMonthYear, // <--- AÇÃO DE CLIQUE
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.calendar_month,
+                          size: 16,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          DateFormat(
+                            'MMMM yyyy',
+                            locale,
+                          ).format(_selectedDate).toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -303,7 +342,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
             ),
           ),
 
-          // 3. CARD DE RESUMO FINANCEIRO
+          // 3. PLACAR TOTAL
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             padding: const EdgeInsets.all(24),
@@ -325,9 +364,11 @@ class _FinanceScreenState extends State<FinanceScreen> {
             ),
             child: Column(
               children: [
-                const Text(
-                  "SALDO LÍQUIDO",
-                  style: TextStyle(
+                Text(
+                  _selectedFilter == 'Todos'
+                      ? "SALDO LÍQUIDO"
+                      : "TOTAL ${_selectedFilter.toUpperCase()}",
+                  style: const TextStyle(
                     color: Colors.white54,
                     fontSize: 12,
                     letterSpacing: 1.5,
@@ -348,8 +389,9 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         ),
                       ),
                 const SizedBox(height: 16),
-                // Mini resumo Entrada vs Saída
-                if (!_isLoading)
+
+                // Só mostra o detalhe Entrada/Saída se estiver em 'Todos'
+                if (!_isLoading && _selectedFilter == 'Todos')
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
@@ -392,7 +434,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
             ),
           ),
 
-          // 4. LISTA DE TRANSAÇÕES
+          // 4. LISTA
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -428,7 +470,6 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 8.0),
                         child: Row(
                           children: [
-                            // Box da Data
                             Container(
                               width: 50,
                               height: 50,
@@ -461,8 +502,6 @@ class _FinanceScreenState extends State<FinanceScreen> {
                               ),
                             ),
                             const SizedBox(width: 16),
-
-                            // Detalhes
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -487,8 +526,6 @@ class _FinanceScreenState extends State<FinanceScreen> {
                                 ],
                               ),
                             ),
-
-                            // Valor
                             Text(
                               "${isExpense ? '-' : ''}${_formatCurrency(item['value'])}",
                               style: TextStyle(
