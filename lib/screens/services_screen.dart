@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
 import 'package:vlinix/theme/app_colors.dart';
-import 'package:vlinix/widgets/user_profile_menu.dart'; // <--- IMPORTANTE
+import 'package:vlinix/widgets/user_profile_menu.dart';
 import 'add_service_screen.dart';
 
 class ServicesScreen extends StatefulWidget {
@@ -19,22 +19,26 @@ class _ServicesScreenState extends State<ServicesScreen> {
       .order('name');
 
   Future<void> _delete(int id) async {
+    final lang = AppLocalizations.of(context)!;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Excluir Serviço?'),
+        title: const Text('Excluir Serviço?'), // Pode criar chave depois
         content: const Text(
           'Se este serviço estiver em algum agendamento, ele não poderá ser excluído.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+            child: Text(
+              lang.btnCancel,
+              style: const TextStyle(color: Colors.grey),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Excluir'),
+            child: Text(lang.btnDelete),
           ),
         ],
       ),
@@ -80,24 +84,20 @@ class _ServicesScreenState extends State<ServicesScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        // --- 1. AVATAR ---
         leading: const Padding(
           padding: EdgeInsets.all(8.0),
           child: UserProfileMenu(),
         ),
-
         title: Text(lang.menuServices),
         centerTitle: true,
-        // Theme cuida das cores
       ),
-
       floatingActionButton: FloatingActionButton(
+        heroTag: 'fab_services', // Hero Tag única para evitar erro
         onPressed: () => _navigateToAddEdit(),
-        backgroundColor: AppColors.accent, // Dourado
+        backgroundColor: AppColors.accent,
         foregroundColor: Colors.white,
         child: const Icon(Icons.add),
       ),
-
       body: StreamBuilder(
         stream: _stream,
         builder: (ctx, snap) {
@@ -150,7 +150,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
+                      color: AppColors.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(
@@ -180,23 +180,23 @@ class _ServicesScreenState extends State<ServicesScreen> {
                       }
                     },
                     itemBuilder: (context) => [
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'edit',
                         child: Row(
                           children: [
-                            Icon(Icons.edit, color: AppColors.primary),
-                            SizedBox(width: 8),
-                            Text('Editar'),
+                            const Icon(Icons.edit, color: AppColors.primary),
+                            const SizedBox(width: 8),
+                            Text(lang.btnEdit), // Traduzido
                           ],
                         ),
                       ),
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'delete',
                         child: Row(
                           children: [
-                            Icon(Icons.delete, color: AppColors.error),
-                            SizedBox(width: 8),
-                            Text('Excluir'),
+                            const Icon(Icons.delete, color: AppColors.error),
+                            const SizedBox(width: 8),
+                            Text(lang.btnDelete), // Traduzido
                           ],
                         ),
                       ),

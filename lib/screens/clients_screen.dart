@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
-import 'package:vlinix/theme/app_colors.dart'; // <--- IMPORTANTE: Nossas cores
+import 'package:vlinix/theme/app_colors.dart';
+import 'package:vlinix/widgets/user_profile_menu.dart';
 import 'add_client_screen.dart';
 
 class ClientsScreen extends StatefulWidget {
@@ -36,9 +37,8 @@ class _ClientsScreenState extends State<ClientsScreen> {
     super.dispose();
   }
 
-  // --- DELETE ---
   Future<void> _deleteClient(int id) async {
-    // Adicionei uma confirmação para ficar mais seguro/profissional
+    final lang = AppLocalizations.of(context)!;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -47,12 +47,15 @@ class _ClientsScreenState extends State<ClientsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+            child: Text(
+              lang.btnCancel,
+              style: const TextStyle(color: Colors.grey),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Excluir'),
+            child: Text(lang.btnDelete),
           ),
         ],
       ),
@@ -98,40 +101,34 @@ class _ClientsScreenState extends State<ClientsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        leading: const Padding(
+          padding: EdgeInsets.all(8.0),
+          child: UserProfileMenu(),
+        ),
         title: Text(lang.titleManageClients),
         centerTitle: true,
-        // Cor e estilo vêm do Theme (Chumbo)
-        // Adicionamos ícone de busca na AppBar para ficar moderno (opcional, mas legal)
       ),
-
       floatingActionButton: FloatingActionButton(
+        heroTag: 'fab_clients', // Hero Tag Única
         onPressed: () => _navigateToAddEdit(),
-        backgroundColor: AppColors.accent, // Dourado
+        backgroundColor: AppColors.accent,
         foregroundColor: Colors.white,
         child: const Icon(Icons.person_add),
       ),
-
       body: Column(
         children: [
-          // --- BARRA DE PESQUISA (Agora mais limpa) ---
           Container(
             padding: const EdgeInsets.all(16.0),
-            color: Colors.white, // Fundo branco na área de busca
+            color: Colors.white,
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                labelText:
-                    lang.hintSearchClient, // <--- Traduzido (Pesquisar Cliente)
-                hintText: lang
-                    .hintSearchGeneric, // <--- Traduzido (Nome, telefone...)
+                labelText: lang.hintSearchClient, // Traduzido
+                hintText: lang.hintSearchGeneric, // Traduzido
                 prefixIcon: const Icon(Icons.search),
-                // O Theme já cuida das bordas douradas!
                 filled: true,
                 fillColor: AppColors.background,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 0,
-                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
                   borderSide: BorderSide.none,
@@ -150,8 +147,6 @@ class _ClientsScreenState extends State<ClientsScreen> {
               ),
             ),
           ),
-
-          // --- LISTA ---
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: _clientsStream,
@@ -164,8 +159,6 @@ class _ClientsScreenState extends State<ClientsScreen> {
                 }
 
                 final allClients = snapshot.data!;
-
-                // Lógica de Filtro
                 final clients = allClients.where((client) {
                   final name = (client['full_name'] ?? '')
                       .toString()
@@ -202,10 +195,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.only(
-                    top: 8,
-                    bottom: 80,
-                  ), // Espaço pro FAB
+                  padding: const EdgeInsets.only(top: 8, bottom: 80),
                   itemCount: clients.length,
                   itemBuilder: (context, index) {
                     final client = clients[index];
@@ -231,7 +221,9 @@ class _ClientsScreenState extends State<ClientsScreen> {
                           vertical: 8,
                         ),
                         leading: CircleAvatar(
-                          backgroundColor: AppColors.primary.withOpacity(0.1),
+                          backgroundColor: AppColors.primary.withValues(
+                            alpha: 0.1,
+                          ),
                           child: Text(
                             firstLetter,
                             style: const TextStyle(
@@ -281,23 +273,29 @@ class _ClientsScreenState extends State<ClientsScreen> {
                             }
                           },
                           itemBuilder: (context) => [
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value: 'edit',
                               child: Row(
                                 children: [
-                                  Icon(Icons.edit, color: AppColors.primary),
-                                  SizedBox(width: 8),
-                                  Text('Editar'),
+                                  const Icon(
+                                    Icons.edit,
+                                    color: AppColors.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(lang.btnEdit),
                                 ],
                               ),
                             ),
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value: 'delete',
                               child: Row(
                                 children: [
-                                  Icon(Icons.delete, color: AppColors.error),
-                                  SizedBox(width: 8),
-                                  Text('Excluir'),
+                                  const Icon(
+                                    Icons.delete,
+                                    color: AppColors.error,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(lang.btnDelete),
                                 ],
                               ),
                             ),
