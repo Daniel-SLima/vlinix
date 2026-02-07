@@ -222,4 +222,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get hintSearchGeneric => 'Nombre, teléfono o email...';
+
+  @override
+  String get labelHello => 'Hola';
 }

@@ -221,4 +221,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hintSearchGeneric => 'Name, phone or email...';
+
+  @override
+  String get labelHello => 'Hello';
 }

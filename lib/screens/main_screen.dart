@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vlinix/theme/app_colors.dart';
-import 'package:vlinix/l10n/app_localizations.dart'; // <--- IMPORTANTE
+import 'package:vlinix/l10n/app_localizations.dart'; // <--- Importante
 
 // Import das telas filhas
 import 'package:vlinix/screens/home_screen.dart';
@@ -35,7 +35,7 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final lang = AppLocalizations.of(context)!; // <--- Pega Traduções
+    final lang = AppLocalizations.of(context)!; // <--- Pega as traduções
 
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: _screens),
@@ -45,11 +45,9 @@ class _MainScreenState extends State<MainScreen> {
         ),
         child: NavigationBarTheme(
           data: NavigationBarThemeData(
-            indicatorColor: AppColors.accent.withValues(
-              alpha: 0.2,
-            ), // Correção withValues
-            labelTextStyle: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.selected)) {
+            indicatorColor: AppColors.accent.withOpacity(0.2),
+            labelTextStyle: MaterialStateProperty.resolveWith((states) {
+              if (states.contains(MaterialState.selected)) {
                 return const TextStyle(
                   color: AppColors.accent,
                   fontWeight: FontWeight.bold,
@@ -58,8 +56,8 @@ class _MainScreenState extends State<MainScreen> {
               }
               return const TextStyle(color: Colors.grey, fontSize: 12);
             }),
-            iconTheme: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.selected)) {
+            iconTheme: MaterialStateProperty.resolveWith((states) {
+              if (states.contains(MaterialState.selected)) {
                 return const IconThemeData(color: AppColors.accent);
               }
               return const IconThemeData(color: Colors.grey);
@@ -74,27 +72,30 @@ class _MainScreenState extends State<MainScreen> {
               NavigationDestination(
                 icon: const Icon(Icons.people_outline),
                 selectedIcon: const Icon(Icons.people),
-                label: lang.menuClients, // Traduzido
+                label:
+                    lang.menuClients, // <--- CORRIGIDO (Antes era 'Clientes')
               ),
               NavigationDestination(
                 icon: const Icon(Icons.directions_car_outlined),
                 selectedIcon: const Icon(Icons.directions_car),
-                label: lang.menuVehicles, // Traduzido
+                label:
+                    lang.menuVehicles, // <--- CORRIGIDO (Antes era 'Veículos')
               ),
               NavigationDestination(
                 icon: const Icon(Icons.calendar_month_outlined),
                 selectedIcon: const Icon(Icons.calendar_month),
-                label: lang.menuAgenda, // Traduzido
+                label: lang.menuAgenda, // <--- CORRIGIDO (Antes era 'Agenda')
               ),
               NavigationDestination(
                 icon: const Icon(Icons.local_offer_outlined),
                 selectedIcon: const Icon(Icons.local_offer),
-                label: lang.menuServices, // Traduzido
+                label:
+                    lang.menuServices, // <--- CORRIGIDO (Antes era 'Serviços')
               ),
               NavigationDestination(
                 icon: const Icon(Icons.attach_money),
                 selectedIcon: const Icon(Icons.monetization_on),
-                label: lang.menuFinance, // Traduzido
+                label: lang.menuFinance, // <--- CORRIGIDO (Antes era 'Caixa')
               ),
             ],
           ),

@@ -69,5 +69,6 @@
     "labelDisplayName": "Display Name",
     "hintSearchClient": "Search Client",
     "hintSearchVehicle": "Search Vehicle",
-    "hintSearchGeneric": "Name, phone or email..."
+    "hintSearchGeneric": "Name, phone or email...",
+    "labelHello": "Hello"
 }

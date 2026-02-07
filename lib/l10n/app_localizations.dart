@@ -525,6 +525,12 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Nome, telefone ou email...'**
   String get hintSearchGeneric;
+
+  /// No description provided for @labelHello.
+  ///
+  /// In pt, this message translates to:
+  /// **'Olá'**
+  String get labelHello;
 }
 
 class _AppLocalizationsDelegate

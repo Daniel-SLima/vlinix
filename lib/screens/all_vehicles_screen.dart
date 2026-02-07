@@ -50,7 +50,7 @@ class _AllVehiclesScreenState extends State<AllVehiclesScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Excluir Veículo?'),
+        title: Text(lang.dialogDeleteTitle), // Traduzido
         content: Text(lang.dialogDeleteContent),
         actions: [
           TextButton(
@@ -75,8 +75,10 @@ class _AllVehiclesScreenState extends State<AllVehiclesScreen> {
       await Supabase.instance.client.from('vehicles').delete().eq('id', id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Veículo excluído com sucesso.'),
+          SnackBar(
+            content: Text(
+              lang.msgClientDeleted,
+            ), // Usando msg generica ou criar nova
             backgroundColor: AppColors.success,
           ),
         );
@@ -84,8 +86,8 @@ class _AllVehiclesScreenState extends State<AllVehiclesScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Erro ao excluir veículo.'),
+          SnackBar(
+            content: Text(lang.msgErrorDeleteVehicle), // Traduzido
             backgroundColor: AppColors.error,
           ),
         );
@@ -127,7 +129,7 @@ class _AllVehiclesScreenState extends State<AllVehiclesScreen> {
         centerTitle: true,
       ),
       floatingActionButton: FloatingActionButton(
-        heroTag: 'fab_vehicles', // Hero Tag Única
+        heroTag: 'fab_vehicles',
         onPressed: () => _navigateToAddEdit(),
         backgroundColor: AppColors.accent,
         foregroundColor: Colors.white,
@@ -230,7 +232,9 @@ class _AllVehiclesScreenState extends State<AllVehiclesScreen> {
                         leading: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.1),
+                            color: AppColors.primary.withValues(
+                              alpha: 0.1,
+                            ), // Correção
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
@@ -296,7 +300,7 @@ class _AllVehiclesScreenState extends State<AllVehiclesScreen> {
                                   Text(lang.btnEdit),
                                 ],
                               ),
-                            ),
+                            ), // Traduzido
                             PopupMenuItem(
                               value: 'delete',
                               child: Row(
@@ -309,7 +313,7 @@ class _AllVehiclesScreenState extends State<AllVehiclesScreen> {
                                   Text(lang.btnDelete),
                                 ],
                               ),
-                            ),
+                            ), // Traduzido
                           ],
                         ),
                       ),

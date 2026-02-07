@@ -23,7 +23,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Excluir Serviço?'), // Pode criar chave depois
+        title: const Text('Excluir Serviço?'), // Pode traduzir depois
         content: const Text(
           'Se este serviço estiver em algum agendamento, ele não poderá ser excluído.',
         ),
@@ -92,7 +92,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
         centerTitle: true,
       ),
       floatingActionButton: FloatingActionButton(
-        heroTag: 'fab_services', // Hero Tag única para evitar erro
+        heroTag: 'fab_services',
         onPressed: () => _navigateToAddEdit(),
         backgroundColor: AppColors.accent,
         foregroundColor: Colors.white,
@@ -101,12 +101,9 @@ class _ServicesScreenState extends State<ServicesScreen> {
       body: StreamBuilder(
         stream: _stream,
         builder: (ctx, snap) {
-          if (snap.hasError) {
-            return Center(child: Text('Erro: ${snap.error}'));
-          }
-          if (!snap.hasData) {
+          if (snap.hasError) return Center(child: Text('Erro: ${snap.error}'));
+          if (!snap.hasData)
             return const Center(child: CircularProgressIndicator());
-          }
           final list = snap.data as List;
 
           if (list.isEmpty) {
@@ -150,7 +147,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
+                      color: AppColors.primary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(
@@ -186,20 +183,20 @@ class _ServicesScreenState extends State<ServicesScreen> {
                           children: [
                             const Icon(Icons.edit, color: AppColors.primary),
                             const SizedBox(width: 8),
-                            Text(lang.btnEdit), // Traduzido
+                            Text(lang.btnEdit),
                           ],
                         ),
-                      ),
+                      ), // <--- CORRIGIDO
                       PopupMenuItem(
                         value: 'delete',
                         child: Row(
                           children: [
                             const Icon(Icons.delete, color: AppColors.error),
                             const SizedBox(width: 8),
-                            Text(lang.btnDelete), // Traduzido
+                            Text(lang.btnDelete),
                           ],
                         ),
-                      ),
+                      ), // <--- CORRIGIDO
                     ],
                   ),
                 ),

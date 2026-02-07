@@ -35,13 +35,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final now = DateTime.now();
-
       final startOfDay = DateTime(
         now.year,
         now.month,
         now.day,
       ).toUtc().toIso8601String();
-
       final endOfDay = DateTime(
         now.year,
         now.month,
@@ -59,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
         appointment_services(price, services(name))
       ''';
 
-      // 1. Busca Agendamentos de HOJE
+      // 2. Busca HOJE
       final todayData = await supabase
           .from('appointments')
           .select(selectQuery)
@@ -67,7 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
           .lte('start_time', endOfDay)
           .order('start_time', ascending: true);
 
-      // 2. Busca PRÓXIMOS Agendamentos
+      // 3. Busca PRÓXIMOS (Sem limite, para ver todos)
       final upcomingData = await supabase
           .from('appointments')
           .select(selectQuery)
@@ -257,9 +255,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-
       floatingActionButton: _buildFab(),
-
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -277,7 +273,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           Expanded(
                             child: Text(
-                              "Olá, $displayName",
+                              // CORRIGIDO: Removemos o ?? 'Olá' pois lang.labelHello é obrigatório
+                              "${lang.labelHello}, $displayName",
                               style: const TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
@@ -288,7 +285,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         ],
                       ),
                     ),
-
                     Row(
                       children: [
                         const Icon(
@@ -313,9 +309,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       isToday: true,
                       emptyMsg: lang.agendaEmptyToday,
                     ),
-
                     const SizedBox(height: 30),
-
                     Row(
                       children: [
                         const Icon(
@@ -350,7 +344,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildFab() {
     final lang = AppLocalizations.of(context)!;
-
     return PopupMenuButton<String>(
       offset: const Offset(0, -200),
       tooltip: lang.btnNew,
@@ -378,7 +371,6 @@ class _HomeScreenState extends State<HomeScreen> {
           screen = const AddVehicleScreen();
         else
           screen = const AddAppointmentScreen();
-
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => screen),
@@ -446,7 +438,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     }
-
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -454,7 +445,6 @@ class _HomeScreenState extends State<HomeScreen> {
       itemBuilder: (context, index) {
         final apt = list[index];
         final data = _processAppointmentData(apt);
-
         return Card(
           elevation: 0,
           color: Colors.white,
@@ -471,8 +461,9 @@ class _HomeScreenState extends State<HomeScreen> {
             leading: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
+                // CORREÇÃO: Usando withValues para evitar deprecation
                 color: isToday
-                    ? AppColors.accent.withOpacity(0.15)
+                    ? AppColors.accent.withValues(alpha: 0.15)
                     : Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -507,22 +498,22 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.directions_car,
                       size: 14,
-                      color: Colors.grey[600],
+                      color: Colors.grey,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       "${data['vehicleInfo']}",
-                      style: TextStyle(color: Colors.grey[800]),
+                      style: const TextStyle(color: Colors.grey),
                     ),
                   ],
                 ),
                 if (data['serviceNames'].toString().isNotEmpty)
                   Text(
                     "${data['serviceNames']}",
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    style: const TextStyle(color: Colors.grey, fontSize: 12),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -548,7 +539,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: data['isCompleted'] ? AppColors.success : Colors.orange,
                 size: 28,
               ),
-              tooltip: data['isCompleted'] ? 'Reabrir' : 'Concluir',
               onPressed: () {
                 final lang = AppLocalizations.of(context)!;
                 if (data['isCompleted']) {
