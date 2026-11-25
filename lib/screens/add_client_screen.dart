@@ -170,8 +170,13 @@ class _AddClientScreenState extends State<AddClientScreen> {
     try {
       final supabase = AppBackend.client;
 
-      String rawPhone = _phoneController.text.trim();
-      String fullPhone = rawPhone.isNotEmpty ? '+1 $rawPhone' : '';
+      final rawPhone = _phoneController.text.trim();
+      // Preserve an international prefix when editing an existing number.
+      final fullPhone = rawPhone.isEmpty
+          ? ''
+          : rawPhone.startsWith('+') || rawPhone.startsWith('00')
+          ? rawPhone
+          : '+1 $rawPhone';
 
       List<String> addressParts = [];
       if (_streetController.text.isNotEmpty) {
