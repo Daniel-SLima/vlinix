@@ -80,7 +80,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
         .map((item) => item['services']?['name'])
         .whereType<String>()
         .join(', ');
-    final title = 'Vlinix: ${services.isEmpty ? lang.menuServicos : services}';
+    final title = 'Vlinix: ${services.isEmpty ? lang.menuServices : services}';
     final vehicleLabel = [
       vehicle['brand'],
       vehicle['model'],
@@ -190,7 +190,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
               final apt = appointments[index];
 
               return FutureBuilder(
-                future: Future.wait([
+                future: Future.wait<dynamic>(<Future<dynamic>>[
                   AppBackend.client
                       .from('clients')
                       .select()
