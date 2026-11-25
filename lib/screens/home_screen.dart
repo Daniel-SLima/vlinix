@@ -1269,10 +1269,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: isCancelled ? Colors.grey : Colors.grey[600],
                     ),
                     const SizedBox(width: 4),
-                    Text(
-                      "${data['vehicleInfo']}",
-                      style: TextStyle(
-                        color: isCancelled ? Colors.grey : Colors.grey[800],
+                    Expanded(
+                      child: Text(
+                        "${data['vehicleInfo']}",
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: isCancelled ? Colors.grey : Colors.grey[800],
+                        ),
                       ),
                     ),
                   ],
