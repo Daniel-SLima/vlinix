@@ -1,3 +1,4 @@
+import 'package:vlinix/data/app_backend.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -45,13 +46,14 @@ class _MainScreenState extends State<MainScreen> {
   void dispose() {
     _sessionTimer?.cancel();
     if (_securitySubscription != null) {
-      Supabase.instance.client.removeChannel(_securitySubscription!);
+      AppBackend.client.removeChannel(_securitySubscription!);
     }
     super.dispose();
   }
 
   void _setupRealtimeSecurity() {
-    final supabase = Supabase.instance.client;
+    if (AppBackend.isDemo) return;
+    final supabase = AppBackend.client;
     final myUserId = supabase.auth.currentUser?.id;
 
     if (myUserId == null) return;
@@ -80,7 +82,7 @@ class _MainScreenState extends State<MainScreen> {
   Future<void> _forceLogout({bool isSuspended = false}) async {
     if (!mounted) return;
 
-    await Supabase.instance.client.auth.signOut();
+    await AppBackend.client.auth.signOut();
 
     if (mounted) {
       final lang = AppLocalizations.of(context)!;
@@ -105,7 +107,8 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _checkDemoUser() {
-    final user = Supabase.instance.client.auth.currentUser;
+    if (AppBackend.isDemo) return;
+    final user = AppBackend.client.auth.currentUser;
     const emailDeTeste = 'visitante@vlinix.com';
 
     if (user?.email == emailDeTeste) {

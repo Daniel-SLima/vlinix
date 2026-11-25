@@ -1,3 +1,4 @@
+import 'package:vlinix/data/app_backend.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
@@ -40,13 +41,14 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     if (_announcementChannel != null) {
-      Supabase.instance.client.removeChannel(_announcementChannel!);
+      AppBackend.client.removeChannel(_announcementChannel!);
     }
     super.dispose();
   }
 
   Future<void> _setupAnnouncementListener() async {
-    final supabase = Supabase.instance.client;
+    if (AppBackend.isDemo) return;
+    final supabase = AppBackend.client;
 
     try {
       final data = await supabase
@@ -90,7 +92,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadDashboardData() async {
     setState(() => _isLoading = true);
-    final supabase = Supabase.instance.client;
+    final supabase = AppBackend.client;
 
     try {
       final now = DateTime.now();
@@ -144,6 +146,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _openMap(String address) async {
+    if (AppBackend.isDemo) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Endereço fictício. Mapas externos estão desativados na demonstração.',
+          ),
+        ),
+      );
+      return;
+    }
     final lang = AppLocalizations.of(context)!;
     final Uri url = Uri.parse(
       'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}',
@@ -163,6 +175,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _openShop() async {
+    if (AppBackend.isDemo) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('A loja externa não faz parte da demonstração local.'),
+        ),
+      );
+      return;
+    }
     final lang = AppLocalizations.of(context)!;
     final Uri url = Uri.parse('https://vlinix.com/');
     if (await canLaunchUrl(url)) {
@@ -185,7 +205,7 @@ class _HomeScreenState extends State<HomeScreen> {
     String? paymentMethod,
     double? tipAmount,
   }) async {
-    final supabase = Supabase.instance.client;
+    final supabase = AppBackend.client;
     String feedbackMsg = '';
     final lang = AppLocalizations.of(context)!;
 
@@ -314,7 +334,7 @@ class _HomeScreenState extends State<HomeScreen> {
     bool currentStatus,
   ) async {
     try {
-      await Supabase.instance.client
+      await AppBackend.client
           .from('appointment_services')
           .update({'completed': !currentStatus})
           .eq('id', appointmentServiceId);
@@ -533,7 +553,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // --- NOVA FUNÇÃO DA FASE 3: EDITAR AGENDAMENTO CONCLUÍDO ---
   void _showEditCompletedDialog(Map<String, dynamic> apt) async {
     final lang = AppLocalizations.of(context)!;
-    final supabase = Supabase.instance.client;
+    final supabase = AppBackend.client;
     final currencySymbol = NumberFormat.simpleCurrency(name: '').currencySymbol;
 
     final allServicesRes = await supabase
@@ -807,7 +827,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = Supabase.instance.client.auth.currentUser;
+    final currentUser = AppBackend.client.auth.currentUser;
     final lang = AppLocalizations.of(context)!;
     final String displayName =
         currentUser?.userMetadata?['full_name'] ?? lang.labelDefaultUser;
@@ -1382,4 +1402,5 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
+
 //teste de deploy

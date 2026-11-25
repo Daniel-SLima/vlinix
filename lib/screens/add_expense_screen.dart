@@ -1,5 +1,5 @@
+import 'package:vlinix/data/app_backend.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
 import 'package:vlinix/theme/app_colors.dart';
@@ -102,7 +102,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final userId = Supabase.instance.client.auth.currentUser!.id;
+      final userId = AppBackend.client.auth.currentUser!.id;
       final double amount = double.parse(
         _amountController.text.replaceAll(',', '.'),
       );
@@ -129,9 +129,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       };
 
       if (widget.expenseToEdit == null) {
-        await Supabase.instance.client.from('expenses').insert(data);
+        await AppBackend.client.from('expenses').insert(data);
       } else {
-        await Supabase.instance.client
+        await AppBackend.client
             .from('expenses')
             .update(data)
             .eq('id', widget.expenseToEdit!['id']);

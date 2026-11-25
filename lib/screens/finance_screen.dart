@@ -1,7 +1,7 @@
+import 'package:vlinix/data/app_backend.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:excel/excel.dart' hide Border;
 import 'package:path_provider/path_provider.dart';
@@ -41,7 +41,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
 
   Future<void> _fetchServicesList() async {
     try {
-      final res = await Supabase.instance.client
+      final res = await AppBackend.client
           .from('services')
           .select()
           .order('name');
@@ -231,7 +231,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
         updateData['google_event_id'] = null;
       }
 
-      await Supabase.instance.client
+      await AppBackend.client
           .from('appointments')
           .update(updateData)
           .eq('id', id);
@@ -293,7 +293,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
 
     setState(() => _isLoading = true);
     try {
-      await Supabase.instance.client.from('expenses').delete().eq('id', id);
+      await AppBackend.client.from('expenses').delete().eq('id', id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -435,7 +435,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
       ).toUtc().toIso8601String();
     }
 
-    final supabase = Supabase.instance.client;
+    final supabase = AppBackend.client;
 
     try {
       var queryRevenue = supabase

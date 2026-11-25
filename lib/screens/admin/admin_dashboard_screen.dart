@@ -1,5 +1,5 @@
+import 'package:vlinix/data/app_backend.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:vlinix/theme/app_colors.dart';
 import 'package:vlinix/screens/login_screen.dart';
@@ -54,7 +54,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Future<void> _loadAnnouncement() async {
     try {
-      final data = await Supabase.instance.client
+      final data = await AppBackend.client
           .from('global_announcements')
           .select()
           .eq('id', 1)
@@ -74,7 +74,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Future<void> _updateAnnouncement(bool isActive) async {
     setState(() => _isSavingAnnouncement = true);
     try {
-      await Supabase.instance.client
+      await AppBackend.client
           .from('global_announcements')
           .update({
             'message': _announcementController.text.trim(),
@@ -390,7 +390,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Future<void> _loadPlatformData() async {
     setState(() => _isLoading = true);
-    final supabase = Supabase.instance.client;
+    final supabase = AppBackend.client;
 
     try {
       final profilesData = await supabase
@@ -484,7 +484,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Future<void> _logout() async {
-    await Supabase.instance.client.auth.signOut();
+    await AppBackend.client.auth.signOut();
     if (mounted) {
       Navigator.pushAndRemoveUntil(
         context,

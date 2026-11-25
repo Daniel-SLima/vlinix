@@ -1,5 +1,5 @@
+import 'package:vlinix/data/app_backend.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
 import 'package:vlinix/theme/app_colors.dart';
 
@@ -78,7 +78,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   }
 
   Future<void> _fetchClients() async {
-    final data = await Supabase.instance.client
+    final data = await AppBackend.client
         .from('clients')
         .select()
         .order('full_name');
@@ -105,7 +105,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final userId = Supabase.instance.client.auth.currentUser!.id;
+      final userId = AppBackend.client.auth.currentUser!.id;
       final data = {
         'user_id': userId,
         'client_id': _selectedClientId,
@@ -115,9 +115,9 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       };
 
       if (widget.vehicleToEdit == null) {
-        await Supabase.instance.client.from('vehicles').insert(data);
+        await AppBackend.client.from('vehicles').insert(data);
       } else {
-        await Supabase.instance.client
+        await AppBackend.client
             .from('vehicles')
             .update(data)
             .eq('id', widget.vehicleToEdit!['id']);

@@ -1,5 +1,5 @@
+import 'package:vlinix/data/app_backend.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
 import 'package:vlinix/services/device_calendar_service.dart';
@@ -15,7 +15,7 @@ class AppointmentsScreen extends StatefulWidget {
 }
 
 class _AppointmentsScreenState extends State<AppointmentsScreen> {
-  final _appointmentsStream = Supabase.instance.client
+  final _appointmentsStream = AppBackend.client
       .from('appointments')
       .stream(primaryKey: ['id'])
       .order('start_time', ascending: true);
@@ -49,7 +49,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     if (confirm != true) return;
 
     try {
-      await Supabase.instance.client.from('appointments').delete().eq('id', id);
+      await AppBackend.client.from('appointments').delete().eq('id', id);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -191,17 +191,17 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
 
               return FutureBuilder(
                 future: Future.wait([
-                  Supabase.instance.client
+                  AppBackend.client
                       .from('clients')
                       .select()
                       .eq('id', apt['client_id'])
                       .single(),
-                  Supabase.instance.client
+                  AppBackend.client
                       .from('vehicles')
                       .select()
                       .eq('id', apt['vehicle_id'])
                       .single(),
-                  Supabase.instance.client
+                  AppBackend.client
                       .from('appointment_services')
                       .select('price, services(name)')
                       .eq('appointment_id', apt['id']),

@@ -1,3 +1,4 @@
+import 'package:vlinix/data/app_backend.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -29,7 +30,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   void _loadUserProfile() {
-    final user = Supabase.instance.client.auth.currentUser;
+    final user = AppBackend.client.auth.currentUser;
     if (user != null) {
       _nameController.text = user.userMetadata?['full_name'] ?? '';
       setState(() {
@@ -66,7 +67,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> _saveProfile() async {
     setState(() => _isLoading = true);
-    final supabase = Supabase.instance.client;
+    final supabase = AppBackend.client;
     final user = supabase.auth.currentUser;
     // Pega o lang antes do try catch se possível, mas como pode ter await antes do uso de context,
     // garantimos pegar ele dentro do mounted lá em baixo.

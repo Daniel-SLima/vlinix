@@ -1,3 +1,4 @@
+import 'package:vlinix/data/app_backend.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -5,7 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class UserService {
   // Construtor privado: Agora ele escuta as mudanças de Auth automaticamente!
   UserService._() {
-    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    AppBackend.client.auth.onAuthStateChange.listen((data) {
       refreshUser();
     });
   }
@@ -15,13 +16,13 @@ class UserService {
 
   // O "Notificador". Ele guarda o usuário atual e avisa quando muda.
   final ValueNotifier<User?> userNotifier = ValueNotifier(
-    Supabase.instance.client.auth.currentUser,
+    AppBackend.client.auth.currentUser,
   );
 
   // Função para forçar a atualização dos dados
   void refreshUser() {
     // Pegamos o usuário mais recente do Supabase Auth
-    final updatedUser = Supabase.instance.client.auth.currentUser;
+    final updatedUser = AppBackend.client.auth.currentUser;
     // Atualizamos o notificador. Isso dispara o aviso para quem estiver ouvindo.
     userNotifier.value = updatedUser;
     debugPrint(

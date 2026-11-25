@@ -1,6 +1,6 @@
+import 'package:vlinix/data/app_backend.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:vlinix/theme/app_colors.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
@@ -105,6 +105,16 @@ class _AddClientScreenState extends State<AddClientScreen> {
 
   // --- BUSCA AUTOMÁTICA DE ZIPCODE (APENAS EUA) ---
   Future<void> _searchZipCode() async {
+    if (AppBackend.isDemo) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Na demonstração, preencha um endereço fictício manualmente.',
+          ),
+        ),
+      );
+      return;
+    }
     final zip = _zipController.text.replaceAll(RegExp(r'[^0-9a-zA-Z]'), '');
     if (zip.isEmpty) return;
 
@@ -158,7 +168,7 @@ class _AddClientScreenState extends State<AddClientScreen> {
     final lang = AppLocalizations.of(context)!;
 
     try {
-      final supabase = Supabase.instance.client;
+      final supabase = AppBackend.client;
 
       String rawPhone = _phoneController.text.trim();
       String fullPhone = rawPhone.isNotEmpty ? '+1 $rawPhone' : '';

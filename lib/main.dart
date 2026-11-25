@@ -1,4 +1,8 @@
+import 'package:vlinix/data/app_backend.dart';
+import 'package:vlinix/screens/demo_welcome_screen.dart';
+import 'package:vlinix/widgets/demo_banner.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -11,9 +15,14 @@ const _supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (AppBackend.isDemo) {
+    // Keep the Flutter web accessibility tree available for keyboard users.
+    SemanticsBinding.instance.ensureSemantics();
+  }
   await initializeDateFormatting();
 
-  if (_supabaseUrl.isEmpty || _supabaseAnonKey.isEmpty) {
+  if (!AppBackend.isDemo &&
+      (_supabaseUrl.isEmpty || _supabaseAnonKey.isEmpty)) {
     throw StateError(
       'Missing Supabase configuration. Build with '
       '--dart-define=SUPABASE_URL=... and '
@@ -21,10 +30,9 @@ Future<void> main() async {
     );
   }
 
-  await Supabase.initialize(
-    url: _supabaseUrl,
-    anonKey: _supabaseAnonKey,
-  );
+  if (!AppBackend.isDemo) {
+    await Supabase.initialize(url: _supabaseUrl, anonKey: _supabaseAnonKey);
+  }
 
   runApp(const MyApp());
 }
@@ -43,8 +51,40 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  // --- MUDANÇA AQUI: Forçando o aplicativo a abrir em Inglês ('en') ---
-  Locale? _locale = const Locale('en');
+  Locale? _locale = const Locale(AppBackend.isDemo ? 'pt' : 'en');
+  int _demoRevision = 0;
+  GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+
+  Future<void> _resetDemo() async {
+    final context = _navigatorKey.currentContext;
+    if (context == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Restaurar demonstração?'),
+        content: const Text(
+          'As alterações locais serão substituídas pelos exemplos fictícios iniciais.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Restaurar exemplo'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      AppBackend.demo.reset();
+      setState(() {
+        _demoRevision++;
+        _navigatorKey = GlobalKey<NavigatorState>();
+      });
+    }
+  }
 
   void setLocale(Locale locale) {
     setState(() {
@@ -55,6 +95,15 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      key: ValueKey(_demoRevision),
+      navigatorKey: _navigatorKey,
+      builder: (context, child) => AppBackend.isDemo
+          ? DemoBanner(
+              onReset: _resetDemo,
+              persistent: AppBackend.demo.persistentStorageAvailable,
+              child: child!,
+            )
+          : child!,
       title: 'Vlinix',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -114,7 +163,7 @@ class _MyAppState extends State<MyApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [Locale('en'), Locale('pt'), Locale('es')],
-      home: const LoginScreen(),
+      home: AppBackend.isDemo ? const DemoWelcomeScreen() : const LoginScreen(),
     );
   }
 }

@@ -1,5 +1,5 @@
+import 'package:vlinix/data/app_backend.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
 import 'package:vlinix/theme/app_colors.dart';
@@ -41,7 +41,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
   Future<void> _loadClients() async {
     setState(() => _isLoading = true);
     try {
-      final data = await Supabase.instance.client
+      final data = await AppBackend.client
           .from('clients')
           .select()
           .order('full_name');
@@ -59,6 +59,16 @@ class _ClientsScreenState extends State<ClientsScreen> {
   }
 
   Future<void> _openMap(String address) async {
+    if (AppBackend.isDemo) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Endereço fictício. Mapas externos estão desativados na demonstração.',
+          ),
+        ),
+      );
+      return;
+    }
     final lang = AppLocalizations.of(context)!;
     final Uri url = Uri.parse(
       'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}',
@@ -105,7 +115,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
     if (confirm != true) return;
 
     try {
-      await Supabase.instance.client.from('clients').delete().eq('id', id);
+      await AppBackend.client.from('clients').delete().eq('id', id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

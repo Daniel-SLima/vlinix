@@ -1,5 +1,5 @@
+import 'package:vlinix/data/app_backend.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
 import 'package:vlinix/theme/app_colors.dart';
@@ -58,7 +58,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
   Future<void> _fetchInitialData() async {
     setState(() => _isFetchingInitialData = true);
 
-    final supabase = Supabase.instance.client;
+    final supabase = AppBackend.client;
     try {
       final clientsData = await supabase
           .from('clients')
@@ -112,7 +112,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
   }
 
   Future<void> _fetchVehicles(int clientId) async {
-    final vehiclesData = await Supabase.instance.client
+    final vehiclesData = await AppBackend.client
         .from('vehicles')
         .select()
         .eq('client_id', clientId)
@@ -261,7 +261,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final supabase = Supabase.instance.client;
+      final supabase = AppBackend.client;
       final userId = supabase.auth.currentUser!.id;
 
       final finalDateTime = DateTime(

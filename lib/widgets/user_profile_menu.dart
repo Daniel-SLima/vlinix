@@ -1,3 +1,4 @@
+import 'package:vlinix/data/app_backend.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vlinix/theme/app_colors.dart';
@@ -12,6 +13,15 @@ class UserProfileMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lang = AppLocalizations.of(context)!;
+    if (AppBackend.isDemo) {
+      return const Tooltip(
+        message: 'Alex Demo • Perfil fictício',
+        child: CircleAvatar(
+          backgroundColor: AppColors.accent,
+          child: Icon(Icons.person_outline, color: AppColors.primary),
+        ),
+      );
+    }
 
     // Ouve as mudanças do usuário em tempo real
     return ValueListenableBuilder<User?>(
@@ -58,7 +68,7 @@ class UserProfileMenu extends StatelessWidget {
                 ),
               );
             } else if (value == 'logout') {
-              await Supabase.instance.client.auth.signOut();
+              await AppBackend.client.auth.signOut();
 
               // --- FORÇA A LIMPEZA DA MEMÓRIA AQUI ---
               UserService.instance.refreshUser();

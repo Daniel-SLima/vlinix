@@ -1,5 +1,5 @@
+import 'package:vlinix/data/app_backend.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
 import 'package:vlinix/theme/app_colors.dart';
 import 'package:vlinix/widgets/user_profile_menu.dart';
@@ -17,7 +17,7 @@ class _AllVehiclesScreenState extends State<AllVehiclesScreen> {
   String _searchText = '';
   List<Map<String, dynamic>> _clients = [];
 
-  final _vehiclesStream = Supabase.instance.client
+  final _vehiclesStream = AppBackend.client
       .from('vehicles')
       .stream(primaryKey: ['id'])
       .order('created_at', ascending: false);
@@ -34,7 +34,7 @@ class _AllVehiclesScreenState extends State<AllVehiclesScreen> {
   }
 
   Future<void> _fetchClients() async {
-    final data = await Supabase.instance.client
+    final data = await AppBackend.client
         .from('clients')
         .select()
         .order('full_name');
@@ -72,7 +72,7 @@ class _AllVehiclesScreenState extends State<AllVehiclesScreen> {
     if (confirm != true) return;
 
     try {
-      await Supabase.instance.client.from('vehicles').delete().eq('id', id);
+      await AppBackend.client.from('vehicles').delete().eq('id', id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

@@ -1,5 +1,5 @@
+import 'package:vlinix/data/app_backend.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:googleapis/calendar/v3.dart' as calendar;
 import 'package:http/http.dart' as http;
 
@@ -15,7 +15,7 @@ class GoogleCalendarService {
 
   // Recupera o token do Supabase
   String? _getProviderToken() {
-    final session = Supabase.instance.client.auth.currentSession;
+    final session = AppBackend.client.auth.currentSession;
     return session?.providerToken;
   }
 

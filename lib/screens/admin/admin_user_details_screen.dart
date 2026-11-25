@@ -1,5 +1,5 @@
+import 'package:vlinix/data/app_backend.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:vlinix/theme/app_colors.dart';
 
@@ -31,7 +31,7 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
 
   // --- FUNÇÃO PARA LIGAR/DESLIGAR O USUÁRIO ---
   Future<void> _toggleUserStatus() async {
-    final supabase = Supabase.instance.client;
+    final supabase = AppBackend.client;
     final userId = widget.user['id'];
     final newStatus = !_isActive; // Inverte o status atual
 
@@ -232,7 +232,7 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
 
   Future<void> _loadUserMetrics() async {
     setState(() => _isLoading = true);
-    final supabase = Supabase.instance.client;
+    final supabase = AppBackend.client;
     final userId = widget.user['id'];
 
     try {

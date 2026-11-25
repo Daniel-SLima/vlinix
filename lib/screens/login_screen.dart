@@ -1,3 +1,4 @@
+import 'package:vlinix/data/app_backend.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -27,7 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _setupAuthListener() {
-    Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
+    AppBackend.client.auth.onAuthStateChange.listen((data) async {
       final event = data.event;
       final session = data.session;
 
@@ -37,7 +38,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         // --- O SEGURANÇA DE BALADA (Verifica se está bloqueado) ---
         try {
-          final profileData = await Supabase.instance.client
+          final profileData = await AppBackend.client
               .from('profiles')
               .select('is_active')
               .eq('id', session.user.id)
@@ -46,7 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
           // Se a coluna is_active existir e for falsa, a conta está suspensa
           if (profileData != null && profileData['is_active'] == false) {
             // Chuta o usuário para fora
-            await Supabase.instance.client.auth.signOut();
+            await AppBackend.client.auth.signOut();
 
             if (mounted) {
               final lang = AppLocalizations.of(context)!;
@@ -96,7 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final lang = AppLocalizations.of(context)!;
 
     try {
-      await Supabase.instance.client.auth.signInWithOAuth(
+      await AppBackend.client.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: kIsWeb ? null : 'io.supabase.vlinix://login-callback',
         //scopes: 'https://www.googleapis.com/auth/calendar',
@@ -119,7 +120,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final lang = AppLocalizations.of(context)!;
 
     try {
-      await Supabase.instance.client.auth.signInWithPassword(
+      await AppBackend.client.auth.signInWithPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );

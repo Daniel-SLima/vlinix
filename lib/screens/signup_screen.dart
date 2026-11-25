@@ -1,3 +1,4 @@
+import 'package:vlinix/data/app_backend.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vlinix/theme/app_colors.dart';
@@ -60,7 +61,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     setState(() => _isLoading = true);
     try {
-      await Supabase.instance.client.auth.signUp(
+      await AppBackend.client.auth.signUp(
         email: email,
         password: password,
         data: {'full_name': name},

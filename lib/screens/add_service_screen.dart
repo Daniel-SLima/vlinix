@@ -1,5 +1,5 @@
+import 'package:vlinix/data/app_backend.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vlinix/l10n/app_localizations.dart';
 import 'package:vlinix/theme/app_colors.dart';
 
@@ -72,7 +72,7 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final userId = Supabase.instance.client.auth.currentUser!.id;
+      final userId = AppBackend.client.auth.currentUser!.id;
       final double price = double.parse(
         _priceController.text.replaceAll(',', '.'),
       );
@@ -84,9 +84,9 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
       };
 
       if (widget.serviceToEdit == null) {
-        await Supabase.instance.client.from('services').insert(data);
+        await AppBackend.client.from('services').insert(data);
       } else {
-        await Supabase.instance.client
+        await AppBackend.client
             .from('services')
             .update(data)
             .eq('id', widget.serviceToEdit!['id']);

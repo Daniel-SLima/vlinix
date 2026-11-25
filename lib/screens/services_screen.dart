@@ -1,5 +1,5 @@
+import 'package:vlinix/data/app_backend.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart'; // <--- Necessário para o NumberFormat
 import 'package:vlinix/l10n/app_localizations.dart';
 import 'package:vlinix/theme/app_colors.dart';
@@ -14,7 +14,7 @@ class ServicesScreen extends StatefulWidget {
 }
 
 class _ServicesScreenState extends State<ServicesScreen> {
-  final _stream = Supabase.instance.client
+  final _stream = AppBackend.client
       .from('services')
       .stream(primaryKey: ['id'])
       .order('name');
@@ -46,7 +46,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
     if (confirm != true) return;
 
     try {
-      await Supabase.instance.client.from('services').delete().eq('id', id);
+      await AppBackend.client.from('services').delete().eq('id', id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
